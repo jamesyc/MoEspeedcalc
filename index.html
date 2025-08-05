@@ -16,7 +16,7 @@
       fields.  All calculations assume memory bandwidth is the limiting factor, not the compute capability.
     </p>
     <p>
-      This calculator assumes that the first GPU is reserved for the dense parameters and kv cache (context). The second GPU is used for the MoE parameters.
+      This calculator assumes that the first GPU is reserved for the dense parameters and kv cache (context). The second GPU is used for the MoE parameters. PCIe speed is irrelevant if weights are not being transferred between devices.
     </p>
     <p>
       Set the 2nd GPU bandwidth to the same as system RAM if you want to ignore the 2nd GPU. Set both 1st and 2nd GPU bandwidth to 0 if you want to estimate RAM-only speed.
