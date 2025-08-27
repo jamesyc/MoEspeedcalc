@@ -46,6 +46,18 @@ function prefillModel(model) {
     // Active MoE parameters per token
     moeParamsEl.value = 22988980224;
     // Keep existing KV cache value
+  } else if (model === 'gpt-oss-120b') {
+    // gpt‑oss‑120b preset parameters
+    totalParamsEl.value = 116829156672;
+    denseParamsEl.value = 1548424512;
+    moeParamsEl.value = 3584424960;
+    // Keep existing KV cache value
+  } else if (model === 'glm-4.5-air') {
+    // GLM 4.5 Air preset parameters
+    totalParamsEl.value = 106852251264;
+    denseParamsEl.value = 6393421824;
+    moeParamsEl.value = 7030707840;
+    // Keep existing KV cache value
   } else {
     // Custom – clear fields including KV cache
     totalParamsEl.value = '';
@@ -93,7 +105,7 @@ const gpuPresets = [
   { key: 'a6000', name: 'NVIDIA RTX A6000 (48 GB, 768 GB/s)', vram: 48, bw: 768 },
   { key: 'a5000', name: 'NVIDIA RTX A5000 (24 GB, 768 GB/s)', vram: 24, bw: 768 },
   { key: 'rtxpro6000', name: 'NVIDIA RTX Pro 6000 Blackwell (96 GB, 1792 GB/s)', vram: 96, bw: 1792 },
-  // NVIDIA data-center GPUs
+  // NVIDIA datacenter GPUs
   { key: 'p40', name: 'NVIDIA P40 (24 GB, 346 GB/s)', vram: 24, bw: 346 },
   { key: 'p100', name: 'NVIDIA P100 (16 GB, 732 GB/s)', vram: 16, bw: 732 },
   { key: 'a100', name: 'NVIDIA A100 80GB (80 GB, 1940 GB/s)', vram: 80, bw: 1940 },
@@ -102,7 +114,7 @@ const gpuPresets = [
   // AMD consumer GPUs
   { key: 'radeonvii', name: 'AMD Radeon VII (16 GB, 1024 GB/s)', vram: 16, bw: 1024 },
   { key: 'rx7900xtx', name: 'AMD Radeon RX 7900 XTX (24 GB, 960 GB/s)', vram: 24, bw: 960 },
-  // AMD data-center GPUs
+  // AMD datacenter GPUs
   { key: 'mi25', name: 'AMD Instinct MI25 (16 GB, 484 GB/s)', vram: 16, bw: 484 },
   { key: 'mi50', name: 'AMD Instinct MI50 (32 GB, 1024 GB/s)', vram: 32, bw: 1024 },
   { key: 'mi60', name: 'AMD Instinct MI60 (32 GB, 1024 GB/s)', vram: 32, bw: 1024 },
