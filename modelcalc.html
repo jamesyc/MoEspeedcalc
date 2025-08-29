@@ -279,9 +279,9 @@
 
     const denseActiveNum = `${fmt(embedCount)} + ${fmt(preFirstCount)} + ${fmt(denseTotal)} = ${fmt(denseActive)}`;
     const denseActiveLetters = 'D + E + AB = AI';
-    html += renderRow('AI', 'Dense layers active param count', fmt(denseActive), denseActiveNum, denseActiveLetters);
+    html += renderRow('AI', 'Dense layer(s) active param count', fmt(denseActive), denseActiveNum, denseActiveLetters);
 
-    const totalParamsNum = `${fmt(embedCount)} + ${fmt(preFirstCount)} + ${fmt(denseTotal)} + ${fmt(moeTotal)} = ${fmt(totalParams)}`;
+    const totalParamsNum = `${fmt(denseActive)} + ${fmt(moeTotal)} = ${fmt(totalParams)}`;
     html += renderRow('AJ', 'Exact total param count', fmt(totalParams), totalParamsNum, 'AI + AE = AJ');
 
     const totalActiveNum = `${fmt(denseActive)} + ${fmt(moeActive)} = ${fmt(totalActive)}`;
