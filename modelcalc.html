@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MoE Model Speed Calculator</title>
+  <!-- Link the external stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Mixture‑of‑Experts (MoE) Model Speed Calculator</h1>
+    <p>
+      Use this tool to estimate the theoretical per‑token throughput of large Mixture‑of‑Experts models on a two‑GPU setup. Fill in the
+      hardware characteristics and model details below, or choose a predefined model from the drop‑down to prefill the
+      fields. Real life performance is lower, typically around half of the theoretical max performance. All calculations assume memory bandwidth is the limiting factor, not the compute capability; this may not be accurate for
+      certain models (like gpt-oss on GPUs that do not natively support FP4) or certain GPUs (like most non-NVIDIA GPUs or any GPU without tensor cores). 
+    </p>
+    <p>
+      This calculator assumes that the first GPU is reserved for the dense parameters and kv cache (context). The second GPU is used for the MoE parameters. PCIe speed is mostly irrelevant if weights are not being transferred between devices. 
+    </p>
+    <p>
+      Set the 2nd GPU bandwidth to the same as system RAM if you want to ignore the 2nd GPU. Set both 1st and 2nd GPU bandwidth to 0 if you want to estimate RAM-only speed.
+    </p>
+
+    <!-- GPU selection dropdowns -->
+    <fieldset class="fieldset">
+      <legend>GPU Parameters</legend>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="gpu1-select">GPU&nbsp;1 preset</label>
+          <select id="gpu1-select">
+            <!-- Options will be populated by JavaScript -->
+          </select>
+          <label class="single-gpu-label"><input type="checkbox" id="single-gpu" /> Single GPU</label>
+        </div>
+        <div class="form-group">
+          <label for="gpu2-select">GPU&nbsp;2 preset</label>
+          <select id="gpu2-select">
+            <!-- Options will be populated by JavaScript -->
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="gpu1_vram">GPU&nbsp;1 VRAM capacity (GB)</label>
+          <input type="number" id="gpu1_vram" min="0" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label for="gpu2_vram">GPU&nbsp;2 VRAM capacity (GB)</label>
+          <input type="number" id="gpu2_vram" min="0" step="0.1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="gpu1_bw">GPU&nbsp;1 VRAM bandwidth (GB/s)</label>
+          <input type="number" id="gpu1_bw" min="0" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label for="gpu2_bw">GPU&nbsp;2 VRAM bandwidth (GB/s)</label>
+          <input type="number" id="gpu2_bw" min="0" step="0.1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="system_bw">System RAM bandwidth (GB/s)</label>
+          <input type="number" id="system_bw" min="0" step="0.1" />
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- Model selection and inputs -->
+    <fieldset class="fieldset">
+      <legend>Model Parameters</legend>
+      <!-- Model preset selection -->
+      <div class="form-group">
+        <label for="model-select">Choose Model:</label>
+        <select id="model-select">
+          <option value="custom">Custom (enter your own values)</option>
+          <option value="kimi">Kimi‑K2</option>
+          <option value="deepseek">Deepseek‑R1‑0528</option>
+          <option value="qwen">Qwen3‑235B</option>
+          <option value="gpt-oss-120b">gpt‑oss‑120b</option>
+          <option value="glm-4.5-air">GLM-4.5-Air</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="total_params">Model total size (parameters)</label>
+          <input type="number" id="total_params" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label for="dense_params">Active dense parameters per token</label>
+          <input type="number" id="dense_params" min="0" step="1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="moe_params">Active MoE parameters per token</label>
+          <input type="number" id="moe_params" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label for="kv_cache">KV cache size (GB)</label>
+          <input type="number" id="kv_cache" min="0" step="0.1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="quantization">Quantization level</label>
+          <select id="quantization">
+            <option value="1.58496">1.58-bit (bitnet)</option>
+            <option value="2.5">2.5-bit (Q2)</option>
+            <option value="3.5">3.5-bit (Q3)</option>
+            <option value="4.5">4.5-bit (Q4)</option>
+            <option value="5.5">5.5-bit (Q5)</option>
+            <option value="6.5">6.5-bit (Q6)</option>
+            <option value="8.5" selected>8.5-bit (Q8)</option>
+            <option value="16">16-bit (FP16)</option>
+            <option value="32">32-bit (FP32)</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- Calculation trigger -->
+    <div class="form-group">
+      <button id="calculate-btn">Calculate</button>
+    </div>
+
+    <!-- Results output -->
+    <div id="results" class="results hidden"></div>
+  </div>
+
+  <!-- JavaScript logic -->
+  <script src="script.js"></script>
+</body>
+</html>
