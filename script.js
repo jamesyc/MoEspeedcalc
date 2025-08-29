@@ -96,7 +96,9 @@ function prefillModel(model) {
 const gpuPresets = [
   { key: 'custom', name: 'Custom (enter your own values)', vram: null, bw: null },
   // NVIDIA consumer GPUs
+  { key: 'rtx3060', name: 'NVIDIA GeForce RTX 3060 (8 GB, 240 GB/s)', vram: 8, bw: 240 },
   { key: 'rtx3090', name: 'NVIDIA GeForce RTX 3090 (24 GB, 936 GB/s)', vram: 24, bw: 936 },
+  { key: 'rtx4060', name: 'NVIDIA GeForce RTX 4060 (8 GB, 272 GB/s)', vram: 8, bw: 272 },
   { key: 'rtx4060ti', name: 'NVIDIA GeForce RTX 4060 Ti (16 GB, 288 GB/s)', vram: 16, bw: 288 },
   { key: 'rtx4070', name: 'NVIDIA GeForce RTX 4070 (12 GB, 504 GB/s)', vram: 12, bw: 504 },
   { key: 'rtx4090', name: 'NVIDIA GeForce RTX 4090 (24 GB, 1008 GB/s)', vram: 24, bw: 1008 },
@@ -151,7 +153,38 @@ function handleGpuPresetChange(selectId, vramInputId, bwInputId) {
       bwInput.value = preset.bw;
     }
     // For custom, leave existing values unchanged
+    syncSingleGpu();
   });
+}
+
+// Keep GPU2 bandwidth synced and enforce single GPU values
+function syncSingleGpu() {
+  const checkbox = document.getElementById('single-gpu');
+  if (checkbox && checkbox.checked) {
+    const gpu1Bw = document.getElementById('gpu1_bw').value;
+    document.getElementById('gpu2_bw').value = gpu1Bw;
+  }
+}
+
+// Enable or disable GPU2 fields based on Single GPU checkbox
+function updateSingleGpuState() {
+  const checkbox = document.getElementById('single-gpu');
+  if (!checkbox) return;
+  const gpu2Select = document.getElementById('gpu2-select');
+  const gpu2Vram = document.getElementById('gpu2_vram');
+  const gpu2Bw = document.getElementById('gpu2_bw');
+  if (checkbox.checked) {
+    gpu2Select.disabled = true;
+    gpu2Vram.disabled = true;
+    gpu2Bw.disabled = true;
+    gpu2Select.value = 'custom';
+    gpu2Vram.value = 0;
+    gpu2Bw.value = document.getElementById('gpu1_bw').value;
+  } else {
+    gpu2Select.disabled = false;
+    gpu2Vram.disabled = false;
+    gpu2Bw.disabled = false;
+  }
 }
 
 // Perform the calculations and render results
@@ -309,14 +342,22 @@ document.addEventListener('DOMContentLoaded', () => {
   populateGpuSelect('gpu1-select');
   populateGpuSelect('gpu2-select');
   // Set default selection to custom
-  document.getElementById('gpu1-select').value = 'custom';
-  document.getElementById('gpu2-select').value = 'custom';
-  // Attach change handlers to override VRAM/bandwidth fields when preset selected
-  handleGpuPresetChange('gpu1-select', 'gpu1_vram', 'gpu1_bw');
-  handleGpuPresetChange('gpu2-select', 'gpu2_vram', 'gpu2_bw');
-  // Bind calculate button
-  document.getElementById('calculate-btn').addEventListener('click', (e) => {
-    e.preventDefault();
-    calculate();
-  });
+    document.getElementById('gpu1-select').value = 'custom';
+    document.getElementById('gpu2-select').value = 'custom';
+    // Attach change handlers to override VRAM/bandwidth fields when preset selected
+    handleGpuPresetChange('gpu1-select', 'gpu1_vram', 'gpu1_bw');
+    handleGpuPresetChange('gpu2-select', 'gpu2_vram', 'gpu2_bw');
+    // Single GPU checkbox behavior
+    const singleGpuCheckbox = document.getElementById('single-gpu');
+    singleGpuCheckbox.addEventListener('change', () => {
+      updateSingleGpuState();
+      syncSingleGpu();
+    });
+    document.getElementById('gpu1_bw').addEventListener('input', syncSingleGpu);
+    updateSingleGpuState();
+    // Bind calculate button
+    document.getElementById('calculate-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      calculate();
+    });
 });

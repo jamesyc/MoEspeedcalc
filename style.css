@@ -46,6 +46,14 @@ p {
   border-radius: 4px;
 }
 
+.single-gpu-label {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: normal;
+}
+
 .form-group input:focus,
 .form-group select:focus {
   border-color: #0078D4;
