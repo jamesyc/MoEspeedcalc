@@ -104,8 +104,8 @@ const gpuPresets = [
   { key: 'rtx4090', name: 'NVIDIA GeForce RTX 4090 (24 GB, 1008 GB/s)', vram: 24, bw: 1008 },
   { key: 'rtx5090', name: 'NVIDIA GeForce RTX 5090 (32 GB, 1792 GB/s)', vram: 32, bw: 1792 },
   // NVIDIA workstation GPUs
-  { key: 'a6000', name: 'NVIDIA RTX A6000 (48 GB, 768 GB/s)', vram: 48, bw: 768 },
   { key: 'a5000', name: 'NVIDIA RTX A5000 (24 GB, 768 GB/s)', vram: 24, bw: 768 },
+  { key: 'a6000', name: 'NVIDIA RTX A6000 (48 GB, 768 GB/s)', vram: 48, bw: 768 },
   { key: 'rtxpro6000', name: 'NVIDIA RTX Pro 6000 Blackwell (96 GB, 1792 GB/s)', vram: 96, bw: 1792 },
   // NVIDIA datacenter GPUs
   { key: 'p40', name: 'NVIDIA P40 (24 GB, 346 GB/s)', vram: 24, bw: 346 },
@@ -116,13 +116,6 @@ const gpuPresets = [
   // AMD consumer GPUs
   { key: 'radeonvii', name: 'AMD Radeon VII (16 GB, 1024 GB/s)', vram: 16, bw: 1024 },
   { key: 'rx7900xtx', name: 'AMD Radeon RX 7900 XTX (24 GB, 960 GB/s)', vram: 24, bw: 960 },
-  // AMD datacenter GPUs
-  { key: 'mi25', name: 'AMD Instinct MI25 (16 GB, 484 GB/s)', vram: 16, bw: 484 },
-  { key: 'mi50', name: 'AMD Instinct MI50 (32 GB, 1024 GB/s)', vram: 32, bw: 1024 },
-  { key: 'mi60', name: 'AMD Instinct MI60 (32 GB, 1024 GB/s)', vram: 32, bw: 1024 },
-  { key: 'mi100', name: 'AMD Instinct MI100 (32 GB, 1230 GB/s)', vram: 32, bw: 1230 },
-  { key: 'mi210', name: 'AMD Instinct MI210 (64 GB, 1640 GB/s)', vram: 64, bw: 1640 },
-  { key: 'mi250', name: 'AMD Instinct MI250 (128 GB, 3280 GB/s)', vram: 128, bw: 3280 },
   // Intel consumer GPU
   { key: 'arca770', name: 'Intel Arc A770 (16 GB, 560 GB/s)', vram: 16, bw: 560 }
 ];
