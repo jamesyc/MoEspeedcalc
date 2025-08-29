@@ -3,136 +3,332 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MoE Model Speed Calculator</title>
-  <!-- Link the external stylesheet -->
+  <title>Model Parameter Calculator</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>Mixture‑of‑Experts (MoE) Model Speed Calculator</h1>
+    <h1>Model Parameter Calculator</h1>
     <p>
-      Use this tool to estimate the theoretical per‑token throughput of large Mixture‑of‑Experts models on a two‑GPU setup. Fill in the
-      hardware characteristics and model details below, or choose a predefined model from the drop‑down to prefill the
-      fields. Real life performance is lower, typically around half of the theoretical max performance. All calculations assume memory bandwidth is the limiting factor, not the compute capability; this may not be accurate for
-      certain models (like gpt-oss on GPUs that do not natively support FP4) or certain GPUs (like most non-NVIDIA GPUs or any GPU without tensor cores). 
-    </p>
-    <p>
-      This calculator assumes that the first GPU is reserved for the dense parameters and kv cache (context). The second GPU is used for the MoE parameters. PCIe speed is mostly irrelevant if weights are not being transferred between devices. 
-    </p>
-    <p>
-      Set the 2nd GPU bandwidth to the same as system RAM if you want to ignore the 2nd GPU. Set both 1st and 2nd GPU bandwidth to 0 if you want to estimate RAM-only speed.
+      Enter shapes in HuggingFace style like <code>[151 552, 5 120]</code>. Numbers may include spaces or narrow no‑break spaces; the calculator multiplies dimensions per tensor and sums across lines.
     </p>
 
-    <!-- GPU selection dropdowns -->
     <fieldset class="fieldset">
-      <legend>GPU Parameters</legend>
+      <legend>Model Structure</legend>
       <div class="form-row">
         <div class="form-group">
-          <label for="gpu1-select">GPU&nbsp;1 preset</label>
-          <select id="gpu1-select">
-            <!-- Options will be populated by JavaScript -->
-          </select>
-          <label class="single-gpu-label"><input type="checkbox" id="single-gpu" /> Single GPU</label>
+          <label for="total_layers"><strong>A</strong>: Total layers</label>
+          <input type="number" id="total_layers" min="0" step="1" />
         </div>
         <div class="form-group">
-          <label for="gpu2-select">GPU&nbsp;2 preset</label>
-          <select id="gpu2-select">
-            <!-- Options will be populated by JavaScript -->
-          </select>
+          <label for="dense_layers"><strong>B</strong>: Dense layers</label>
+          <input type="number" id="dense_layers" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label for="moe_layers"><strong>C</strong>: MoE layers</label>
+          <input type="number" id="moe_layers" min="0" step="1" />
         </div>
       </div>
 
       <div class="form-row">
-        <div class="form-group">
-          <label for="gpu1_vram">GPU&nbsp;1 VRAM capacity (GB)</label>
-          <input type="number" id="gpu1_vram" min="0" step="0.1" />
-        </div>
-        <div class="form-group">
-          <label for="gpu2_vram">GPU&nbsp;2 VRAM capacity (GB)</label>
-          <input type="number" id="gpu2_vram" min="0" step="0.1" />
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="embedding_shapes"><strong>D</strong>: Embedding/output matrix shapes (one per line)</label>
+          <textarea id="embedding_shapes" rows="2" placeholder="[V, D]"></textarea>
         </div>
       </div>
+
       <div class="form-row">
-        <div class="form-group">
-          <label for="gpu1_bw">GPU&nbsp;1 VRAM bandwidth (GB/s)</label>
-          <input type="number" id="gpu1_bw" min="0" step="0.1" />
-        </div>
-        <div class="form-group">
-          <label for="gpu2_bw">GPU&nbsp;2 VRAM bandwidth (GB/s)</label>
-          <input type="number" id="gpu2_bw" min="0" step="0.1" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="system_bw">System RAM bandwidth (GB/s)</label>
-          <input type="number" id="system_bw" min="0" step="0.1" />
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="pre_first_norms"><strong>E</strong>: Pre/post first/last layer norms/others (optional, one per line)</label>
+          <textarea id="pre_first_norms" rows="2" placeholder="[D]\n[D]"></textarea>
         </div>
       </div>
     </fieldset>
 
-    <!-- Model selection and inputs -->
     <fieldset class="fieldset">
-      <legend>Model Parameters</legend>
-      <!-- Model preset selection -->
-      <div class="form-group">
-        <label for="model-select">Choose Model:</label>
-        <select id="model-select">
-          <option value="custom">Custom (enter your own values)</option>
-          <option value="kimi">Kimi‑K2</option>
-          <option value="deepseek">Deepseek‑R1‑0528</option>
-          <option value="qwen">Qwen3‑235B</option>
-          <option value="gpt-oss-120b">gpt‑oss‑120b</option>
-          <option value="glm-4.5-air">GLM-4.5-Air</option>
-        </select>
-      </div>
+      <legend>Dense Layers</legend>
       <div class="form-row">
-        <div class="form-group">
-          <label for="total_params">Model total size (parameters)</label>
-          <input type="number" id="total_params" min="0" step="1" />
-        </div>
-        <div class="form-group">
-          <label for="dense_params">Active dense parameters per token</label>
-          <input type="number" id="dense_params" min="0" step="1" />
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="dense_norms"><strong>F</strong>: Norms etc (optional, per dense layer, one per line)</label>
+          <textarea id="dense_norms" rows="3" placeholder="[D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label for="moe_params">Active MoE parameters per token</label>
-          <input type="number" id="moe_params" min="0" step="1" />
-        </div>
-        <div class="form-group">
-          <label for="kv_cache">KV cache size (GB)</label>
-          <input type="number" id="kv_cache" min="0" step="0.1" />
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="dense_attn"><strong>G</strong>: Attention tensors (per dense layer, one per line)</label>
+          <textarea id="dense_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label for="quantization">Quantization level</label>
-          <select id="quantization">
-            <option value="1.58496">1.58-bit (bitnet)</option>
-            <option value="2.5">2.5-bit (Q2)</option>
-            <option value="3.5">3.5-bit (Q3)</option>
-            <option value="4.5">4.5-bit (Q4)</option>
-            <option value="5.5">5.5-bit (Q5)</option>
-            <option value="6.5">6.5-bit (Q6)</option>
-            <option value="8.5" selected>8.5-bit (Q8)</option>
-            <option value="16">16-bit (FP16)</option>
-            <option value="32">32-bit (FP32)</option>
-          </select>
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="dense_ffn"><strong>H</strong>: FFN tensors (per dense layer, one per line)</label>
+          <textarea id="dense_ffn" rows="4" placeholder="[D, 4D]\n[4D, D]\n[D]"></textarea>
         </div>
       </div>
     </fieldset>
 
-    <!-- Calculation trigger -->
+    <fieldset class="fieldset">
+      <legend>MoE Layers</legend>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="experts_per_layer"><strong>I</strong>: Experts per MoE layer</label>
+          <input type="number" id="experts_per_layer" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label for="active_experts"><strong>J</strong>: Active experts per MoE layer</label>
+          <input type="number" id="active_experts" min="0" step="1" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex: 1 1 200px">
+          <label><input type="checkbox" id="has_shared_expert" /> Include shared expert</label>
+        </div>
+        <div class="form-group" style="flex: 1 1 200px">
+          <label for="shared_expert_scope"><strong>L</strong>: Shared expert scope</label>
+          <select id="shared_expert_scope" disabled>
+            <option value="global">Global (single copy)</option>
+            <option value="per_layer" selected>Per MoE layer</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="shared_expert_tensors"><strong>M</strong>: Shared expert tensors</label>
+          <textarea id="shared_expert_tensors" rows="3" placeholder="[H, D]\n[D, H]" disabled></textarea>
+          <div class="info-text">Shared expert parameters are counted under FFN totals.</div>
+        </div>
+      </div>
+
+      
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_attn"><strong>N</strong>: Attention tensors (per MoE layer, one per line)</label>
+          <textarea id="moe_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_transitional"><strong>O</strong>: Norms / transitional (optional, per MoE layer, one per line)</label>
+          <textarea id="moe_transitional" rows="3" placeholder="[D]\n[D]\n[D, D]"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_shared_ffn"><strong>S</strong>: Gate input, biases, other FFN (always active)</label>
+          <textarea id="moe_shared_ffn" rows="3" placeholder="[D, H]\n[H, D]\n[D]"></textarea>
+          <div class="info-text">Included in FFN parameter totals.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_experts"><strong>T</strong>: MoE experts tensors (per MoE layer; may include expert dim E)</label>
+          <textarea id="moe_experts" rows="4" placeholder="Per-layer: [E, H, D] or sum of all expert weights on one line"></textarea>
+          <label class="single-gpu-label"><input type="checkbox" id="experts_include_dim" checked /> Tensors include expert dimension (E)</label>
+          <div class="info-text">If unchecked, shapes are treated as per‑expert and multiplied by the number of experts.</div>
+        </div>
+      </div>
+    </fieldset>
+
     <div class="form-group">
       <button id="calculate-btn">Calculate</button>
     </div>
 
-    <!-- Results output -->
     <div id="results" class="results hidden"></div>
   </div>
 
-  <!-- JavaScript logic -->
-  <script src="script.js"></script>
+  <script>
+  function fmt(n) { return (n || 0).toLocaleString('en-US'); }
+
+  function normalizeNumStr(s) {
+    return s
+      .replace(/[\u00A0\u202F\u2009\s_]/g, '')
+      .replace(/[,']/g, '');
+  }
+
+  function parseShapeGroup(group) {
+    const content = group.replace(/^[^\[]*\[/, '').replace(/\].*$/, '');
+    const dims = content.split(/\s*,\s*/).filter(Boolean).map(d => {
+      const t = normalizeNumStr(d);
+      const v = t ? parseInt(t, 10) : NaN;
+      return isFinite(v) ? v : 0;
+    });
+    if (dims.length === 0) return 0;
+    return dims.reduce((a, b) => a * b, 1);
+  }
+
+  function sumShapes(text) {
+    if (!text) return 0;
+    let total = 0;
+    const lines = String(text).split(/\r?\n/);
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const groups = line.match(/\[[^\]]*\]/g);
+      if (groups) {
+        for (const g of groups) total += parseShapeGroup(g);
+      } else {
+        total += parseShapeGroup('[' + line + ']');
+      }
+    }
+    return total;
+  }
+
+  function calculate() {
+    const totalLayers = parseInt(document.getElementById('total_layers').value || '0', 10) || 0;
+    const denseLayers = parseInt(document.getElementById('dense_layers').value || '0', 10) || 0;
+    const moeLayers = parseInt(document.getElementById('moe_layers').value || '0', 10) || 0;
+    const expertsPer = parseInt(document.getElementById('experts_per_layer').value || '0', 10) || 0;
+    const activeExperts = parseInt(document.getElementById('active_experts').value || '0', 10) || 0;
+
+    const embedCount = sumShapes(document.getElementById('embedding_shapes').value);
+    const preFirstCount = sumShapes(document.getElementById('pre_first_norms').value);
+
+    const dNorms = sumShapes(document.getElementById('dense_norms').value);
+    const dAttn = sumShapes(document.getElementById('dense_attn').value);
+    const dFfn  = sumShapes(document.getElementById('dense_ffn').value);
+    const dPerLayer = dNorms + dAttn + dFfn;
+
+    const mAttn = sumShapes(document.getElementById('moe_attn').value);
+    const mNormsTrans = sumShapes(document.getElementById('moe_transitional').value);
+    const mSharedFfn = sumShapes(document.getElementById('moe_shared_ffn').value);
+    const mExpertsInput = sumShapes(document.getElementById('moe_experts').value);
+    const expertsIncludeDim = document.getElementById('experts_include_dim').checked;
+    const hasShared = document.getElementById('has_shared_expert').checked;
+    const sharedScope = document.getElementById('shared_expert_scope').value;
+    const sharedExpertParams = hasShared ? sumShapes(document.getElementById('shared_expert_tensors').value) : 0;
+    const sharedPerLayer = hasShared ? (sharedScope === 'per_layer' ? sharedExpertParams : (moeLayers > 0 ? (sharedExpertParams / moeLayers) : 0)) : 0;
+    const mAlwaysPerLayer = mNormsTrans + mAttn + mSharedFfn + sharedPerLayer;
+
+    const denseTotal = denseLayers * dPerLayer;
+    const expertsPerLayerTotal = expertsIncludeDim ? mExpertsInput : (mExpertsInput * expertsPer);
+    const moeExpertTotal = moeLayers * expertsPerLayerTotal;
+    const sharedExpertTotal = hasShared ? (sharedScope === 'per_layer' ? moeLayers * sharedExpertParams : sharedExpertParams) : 0;
+    const moeTotal = moeLayers * mAlwaysPerLayer + moeExpertTotal;
+    const totalParams = embedCount + preFirstCount + denseTotal + moeTotal;
+
+    const denseActive = embedCount + preFirstCount + (denseLayers * dPerLayer);
+    const activeExpertsClamped = Math.max(0, Math.min(activeExperts, expertsPer));
+    const expertsActivePerLayer = expertsIncludeDim
+      ? (expertsPer > 0 ? mExpertsInput * (activeExpertsClamped / expertsPer) : 0)
+      : (mExpertsInput * activeExpertsClamped);
+    const moeActive = moeLayers * (mAlwaysPerLayer + expertsActivePerLayer);
+    const totalActive = denseActive + moeActive;
+
+    const denseActivePct = totalActive > 0 ? (100 * denseActive / totalActive) : 0;
+    const moeActivePct = totalActive > 0 ? (100 * moeActive / totalActive) : 0;
+    const moeInactivePerToken = moeLayers * Math.max(0, (expertsPerLayerTotal - expertsActivePerLayer));
+    const totalMlp = denseLayers * dFfn + moeLayers * (mSharedFfn + expertsPerLayerTotal) + sharedExpertTotal;
+    const totalAttn = denseLayers * dAttn + moeLayers * mAttn;
+
+    function renderRow(code, title, valueStr, numericEq, lettersEq) {
+      return (
+        '<div class="result-row" style="display:block">' +
+          // Line 1: title … letter equation
+          '<div class="row-line" style="display:flex; align-items:baseline; gap:8px">' +
+            `<div class="left" style="flex:2; text-align:left"><span class="result-title">${code}: ${title}</span></div>` +
+            '<div class="dots" style="flex:1; text-align:center; opacity:0.5">…</div>' +
+            `<div class="right" style="flex:3; text-align:right"><div class="equation">${lettersEq || ''}</div></div>` +
+          '</div>' +
+          // Line 2: value … numeric equation
+          '<div class="row-line" style="display:flex; align-items:baseline; gap:8px">' +
+            `<div class="left" style="flex:1.5; text-align:left"><div class="result-value">${valueStr}</div></div>` +
+            '<div class="dots" style="flex:1; text-align:center; opacity:0.5">…</div>' +
+            `<div class="right" style="flex:3.5; text-align:right"><div class="equation">${numericEq}</div></div>` +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    const results = document.getElementById('results');
+    let html = '<h2>Explanation</h2>';
+
+    html += renderRow('AA', 'Dense layer(s) per-layer params', fmt(dPerLayer), `${fmt(dNorms)} + ${fmt(dAttn)} + ${fmt(dFfn)} = ${fmt(dPerLayer)}`, 'F + G + H = AA');
+
+    html += renderRow('AB', 'Dense layer(s) total params', fmt(denseTotal), `${fmt(dPerLayer)} × ${fmt(denseLayers)} = ${fmt(denseTotal)}`, 'AA × B = AB');
+
+    const acNumeric = `${fmt(mAttn)} + ${fmt(mNormsTrans)} + ${fmt(mSharedFfn)} + ${fmt(sharedPerLayer)} = ${fmt(mAlwaysPerLayer)}`;
+    const acLetters = hasShared ? (sharedScope === 'per_layer' ? 'N + O + S + M = AC' : 'N + O + S + M/C = AC') : 'N + O + S = AC';
+    html += renderRow('AC', 'MoE layers always-active per-layer params', fmt(mAlwaysPerLayer), acNumeric, acLetters);
+
+    const expertsLayerExplainNum = expertsIncludeDim ? `${fmt(mExpertsInput)} = ${fmt(expertsPerLayerTotal)}` : `${fmt(mExpertsInput)} × ${fmt(expertsPer)} = ${fmt(expertsPerLayerTotal)}`;
+    const expertsLayerExplainLetters = expertsIncludeDim ? 'T = AD' : 'T × I = AD';
+    html += renderRow('AD', 'MoE experts per-layer params', fmt(expertsPerLayerTotal), expertsLayerExplainNum, expertsLayerExplainLetters);
+
+    const moeTotalNum = `${fmt(moeLayers)} × (${fmt(mAlwaysPerLayer)} + ${fmt(expertsPerLayerTotal)}) = ${fmt(moeTotal)}`;
+    const moeTotalLetters = 'C × (AC + AD) = AE';
+    html += renderRow('AE', 'MoE layers total params', fmt(moeTotal), moeTotalNum, moeTotalLetters);
+
+    const expertsActiveExplainNum = expertsIncludeDim ? (expertsPer > 0 ? `${fmt(mExpertsInput)} × (${fmt(activeExpertsClamped)} ÷ ${fmt(expertsPer)})` : `${fmt(mExpertsInput)} × 0`) : `${fmt(mExpertsInput)} × ${fmt(activeExpertsClamped)}`;
+    const expertsActiveExplainLetters = expertsIncludeDim ? (expertsPer > 0 ? 'T × (min(J, I) ÷ I)' : 'T × 0') : 'T × min(J, I)';
+    const moeActiveNum = `${fmt(moeLayers)} × (${fmt(mAlwaysPerLayer)} + ${expertsActiveExplainNum}) = ${fmt(moeActive)}`;
+    const moeActiveLetters = `C × (AC + ${expertsActiveExplainLetters}) = AF`;
+    html += renderRow('AF', 'MoE layers total active params', fmt(moeActive), moeActiveNum, moeActiveLetters);
+
+    const moeAlwaysTotal = moeLayers * mAlwaysPerLayer;
+    const moeAlwaysTotalNum = `${fmt(moeLayers)} × ${fmt(mAlwaysPerLayer)} = ${fmt(moeAlwaysTotal)}`;
+    html += renderRow('AG', 'MoE layers total always-active params', fmt(moeAlwaysTotal), moeAlwaysTotalNum, 'C × AC = AG');
+
+    const moeInactiveNum = expertsIncludeDim
+      ? `${fmt(moeLayers)} × ${fmt(mExpertsInput)} × (1 − (${fmt(activeExpertsClamped)} ÷ ${fmt(expertsPer)})) = ${fmt(moeInactivePerToken)}`
+      : `${fmt(moeLayers)} × ${fmt(mExpertsInput)} × (${fmt(expertsPer)} − ${fmt(activeExpertsClamped)}) = ${fmt(moeInactivePerToken)}`;
+    const moeInactiveLetters = expertsIncludeDim
+      ? `C × T × (1 − (min(J, I) ÷ I)) = AH`
+      : `C × T × (I − min(J, I)) = AH`;
+    html += renderRow('AH', 'MoE inactive per token param count', fmt(moeInactivePerToken), moeInactiveNum, moeInactiveLetters);
+
+    const denseActiveNum = `${fmt(embedCount)} + ${fmt(preFirstCount)} + ${fmt(denseTotal)} = ${fmt(denseActive)}`;
+    const denseActiveLetters = 'D + E + AB = AI';
+    html += renderRow('AI', 'Dense layers active param count', fmt(denseActive), denseActiveNum, denseActiveLetters);
+
+    const totalParamsNum = `${fmt(embedCount)} + ${fmt(preFirstCount)} + ${fmt(denseTotal)} + ${fmt(moeTotal)} = ${fmt(totalParams)}`;
+    html += renderRow('AJ', 'Exact total param count', fmt(totalParams), totalParamsNum, 'AI + AE = AJ');
+
+    const totalActiveNum = `${fmt(denseActive)} + ${fmt(moeActive)} = ${fmt(totalActive)}`;
+    html += renderRow('AK', 'Total active param count', fmt(totalActive), totalActiveNum, 'AI + AF = AK');
+
+    const totalAlwaysActive = denseActive + moeAlwaysTotal;
+    const totalAlwaysActiveNum = `${fmt(denseActive)} + ${fmt(moeAlwaysTotal)} = ${fmt(totalAlwaysActive)}`;
+    html += renderRow('AL', 'Total always-active param count', fmt(totalAlwaysActive), totalAlwaysActiveNum, 'AI + AG = AL');
+
+    const alwaysActivePct = totalActive > 0 ? (100 * totalAlwaysActive / totalActive) : 0;
+    const alwaysShareNum = `${fmt(totalAlwaysActive)} ÷ ${fmt(totalActive)} × 100 = ${alwaysActivePct.toFixed(4)}%`;
+    html += renderRow('AM', 'Always-active share of active (%)', `${alwaysActivePct.toFixed(4)}`, alwaysShareNum, 'AL ÷ AK × 100 = AM');
+
+    const moeExpertsOnly = Math.max(0, moeActive - moeAlwaysTotal);
+    const moeExpertsPct = totalActive > 0 ? (100 * moeExpertsOnly / totalActive) : 0;
+    const moeExpertsShareNum = `(${fmt(moeActive)} − ${fmt(moeAlwaysTotal)}) ÷ ${fmt(totalActive)} × 100 = ${moeExpertsPct.toFixed(4)}%`;
+    html += renderRow('AN', 'MoE share of active (%)', `${moeExpertsPct.toFixed(4)}`, moeExpertsShareNum, '(AF − AG) ÷ AK × 100 = AN');
+
+    const totalMlpNum = `${fmt(denseLayers)} × ${fmt(dFfn)} + ${fmt(moeLayers)} × ${fmt(mSharedFfn)} + ${fmt(moeLayers)} × ${fmt(expertsPerLayerTotal)}` + (hasShared ? ` + ${fmt(sharedExpertTotal)}` : '') + ` = ${fmt(totalMlp)}`;
+    const sharedTotalLetters2 = hasShared ? (sharedScope === 'per_layer' ? ' + C × M' : ' + M') : '';
+    html += renderRow('AO', 'Total MLP param count', fmt(totalMlp), totalMlpNum, `B × H + C × S + C × AD${sharedTotalLetters2} = AO`);
+
+    const totalAttnNum = `${fmt(denseLayers)} × ${fmt(dAttn)} + ${fmt(moeLayers)} × ${fmt(mAttn)} = ${fmt(totalAttn)}`;
+    html += renderRow('AP', 'Total attention param count', fmt(totalAttn), totalAttnNum, 'B × G + C × N = AP');
+
+    results.innerHTML = html;
+    results.classList.remove('hidden');
+    if (typeof results.scrollIntoView === 'function') {
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('calculate-btn');
+    btn.addEventListener('click', (e) => { e.preventDefault(); calculate(); });
+
+    const chk = document.getElementById('has_shared_expert');
+    const scopeSel = document.getElementById('shared_expert_scope');
+    const sharedTA = document.getElementById('shared_expert_tensors');
+    function updateSharedState() {
+      const en = chk.checked;
+      scopeSel.disabled = !en;
+      sharedTA.disabled = !en;
+    }
+    chk && chk.addEventListener('change', updateSharedState);
+    updateSharedState();
+  });
+  </script>
 </body>
 </html>
