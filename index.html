@@ -14,7 +14,7 @@
       Use this tool to estimate the theoretical per‑token throughput of large Mixture‑of‑Experts models on a two‑GPU setup. Fill in the
       hardware characteristics and model details below, or choose a predefined model from the drop‑down to prefill the
       fields. Real life performance is typically around half of the theoretial max performance. All calculations assume memory bandwidth is the limiting factor, not the compute capability; this may not be accurate for
-      certain models (like gpt-oss pre Blackwell) or certain GPUs (most non-NVIDIA GPUs). 
+      certain models (like gpt-oss on GPUs that do not natively support FP4) or certain GPUs (most non-NVIDIA GPUs). 
     </p>
     <p>
       This calculator assumes that the first GPU is reserved for the dense parameters and kv cache (context). The second GPU is used for the MoE parameters. PCIe speed is mostly irrelevant if weights are not being transferred between devices. 
