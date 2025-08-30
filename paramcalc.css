@@ -1,0 +1,55 @@
+/* Param calculator specific styles */
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results-table td {
+  padding: 4px 6px;
+}
+
+.results-table td:last-child {
+  text-align: right;
+}
+
+.row-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.row-line .left {
+  flex: 2;
+  text-align: left;
+}
+
+.row-line .right {
+  flex: 3;
+  text-align: right;
+}
+
+/* Second line uses a slightly narrower left column */
+.row-line.narrow .left {
+  flex: 1.5;
+}
+
+.row-line.narrow .right {
+  flex: 3.5;
+}
+
+/* Helper for subtle inline explanations */
+.muted {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.inline-note {
+  display: inline-block;
+  margin-left: 8px;
+}
+
+.computed-display {
+  margin-top: 6px;
+  color: #333;
+}
