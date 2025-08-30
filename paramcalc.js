@@ -525,6 +525,34 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'deepseek-r1-0528-mtp') {
+    // Start from base DeepSeek R1 0528, then override differences
+    prefillParamModel('deepseek-r1-0528');
+
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+
+    // C: 59 MoE layers
+    setVal('moe_layers', '59');
+
+    // D: four lines, mixing plain and narrow‑space formats
+    setVal('embedding_shapes', [
+      '[129280, 7168]',
+      '[129280, 7168]',
+      '[129\u202F280, 7\u202F168]',
+      '[129\u202F280, 7\u202F168]'
+    ].join('\n'));
+
+    // E: multiple lines with narrow spaces included
+    setVal('pre_first_norms', [
+      '[7168]',
+      '[7\u202F168]',
+      '[7\u202F168]',
+      '[7\u202F168, 14\u202F336]',
+      '[7\u202F168]'
+    ].join('\n'));
+
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   }
 }
 
