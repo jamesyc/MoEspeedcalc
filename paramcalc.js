@@ -302,11 +302,11 @@ function updateSharedState() {
 
 // Prefill presets for the parameter calculator
 function prefillParamModel(model) {
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const setChecked = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+
   if (model === 'kimi-k2') {
     // B, C
-    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-    const setChecked = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
-
     setVal('dense_layers', '1'); // B
     setVal('moe_layers', '60'); // C
 
@@ -398,6 +398,117 @@ function prefillParamModel(model) {
     setVal('moe_shared_ffn', [
       '[384]',
       '[384, 7168]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (per layer; may include E)
+    setVal('moe_experts', [
+      '[7168, 2048]',
+      '[56, 16]',
+      '[2048, 7168]',
+      '[16, 56]',
+      '[2048, 7168]',
+      '[16, 56]'
+    ].join('\n'));
+
+    // Experts include E: unchecked per request
+    setChecked('experts_include_dim', false);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
+  } else if (model === 'deepseek-r1-0528') {
+    // B, C
+    setVal('dense_layers', '3'); // B
+    setVal('moe_layers', '59'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[129280, 7168]',
+      '[129280, 7168]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[7168]'
+    ].join('\n'));
+
+    // F: Dense layer norms
+    setVal('dense_norms', [
+      '[7168]',
+      '[7168]'
+    ].join('\n'));
+
+    // G: Dense attention tensors
+    setVal('dense_attn', [
+      '[512]',
+      '[576, 7168]',
+      '[5, 56]',
+      '[16384, 512]',
+      '[128, 4]',
+      '[7168, 8192]',
+      '[56, 64]',
+      '[1536]',
+      '[1536, 7168]',
+      '[12, 56]',
+      '[12288, 1536]',
+      '[96, 12]',
+      '[56]'
+    ].join('\n'));
+
+    // H: Dense FFN tensors
+    setVal('dense_ffn', [
+      '[7168, 18432]',
+      '[56, 144]',
+      '[18432, 7168]',
+      '[144, 56]',
+      '[18432, 7168]',
+      '[144, 56]'
+    ].join('\n'));
+
+    // I, J
+    setVal('experts_per_layer', '256'); // I
+    setVal('active_experts', '8'); // J
+
+    // K, L, M: Shared expert
+    setChecked('has_shared_expert', true);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', [
+      '[7168, 2048]',
+      '[56, 16]',
+      '[7168, 2048]',
+      '[56, 16]',
+      '[7168, 2048]',
+      '[56, 16]'
+    ].join('\n'));
+
+    // N: MoE attention tensors (same set as G)
+    setVal('moe_attn', [
+      '[512]',
+      '[576, 7168]',
+      '[5, 56]',
+      '[16384, 512]',
+      '[128, 4]',
+      '[7168, 8192]',
+      '[56, 64]',
+      '[1536]',
+      '[1536, 7168]',
+      '[12, 56]',
+      '[12288, 1536]',
+      '[96, 12]',
+      '[56]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[7168]',
+      '[7168]'
+    ].join('\n'));
+
+    // P: Shared FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[256]',
+      '[256, 7168]'
     ].join('\n'));
 
     // Q: MoE experts tensors (per layer; may include E)
