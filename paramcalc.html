@@ -18,6 +18,15 @@
     <fieldset class="fieldset">
       <legend>Model Structure</legend>
       <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="param-model-select">Choose Model</label>
+          <select id="param-model-select">
+            <option value="custom" selected>Custom (enter your own values)</option>
+            <option value="kimi-k2">Kimi K2</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label for="total_layers"><strong>A</strong>: Total layers</label>
           <input type="number" id="total_layers" min="0" step="1" readonly aria-readonly="true" />
@@ -118,14 +127,14 @@
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_shared_ffn"><strong>S</strong>: Gate input, biases, other FFN (always active)</label>
+          <label for="moe_shared_ffn"><strong>P</strong>: Gate input, biases, other FFN (always active)</label>
           <textarea id="moe_shared_ffn" rows="3" placeholder="[D, H]\n[H, D]\n[D]"></textarea>
           <div class="info-text">Included in FFN parameter totals.</div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_experts"><strong>T</strong>: MoE experts tensors (per MoE layer; may include expert dim E)</label>
+          <label for="moe_experts"><strong>Q</strong>: MoE experts tensors (per MoE layer; may include expert dim E)</label>
           <textarea id="moe_experts" rows="4" placeholder="Per-layer: [E, H, D] or sum of all expert weights on one line"></textarea>
           <label class="single-gpu-label"><input type="checkbox" id="experts_include_dim" checked aria-describedby="experts_include_dim_note" /> Tensors include expert dimension (E)</label>
           <div id="experts_include_dim_note" class="info-text">If unchecked, shapes are treated as per‑expert and multiplied by the number of experts.</div>

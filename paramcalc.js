@@ -138,9 +138,9 @@ function renderSummary(r) {
   html += `<tr><td>Exact active param count</td><td>${fmt(r.totalActive)}</td></tr>`; // AK
   html += `<tr><td>Total always-active param count</td><td>${fmt(r.totalAlwaysActive)}</td></tr>`; // AL
   html += `<tr><td>Always-active share of active (%)</td><td>${r.alwaysActivePct.toFixed(4)}%</td></tr>`; // AM
-  html += `<tr><td>MoE active param count</td><td>${fmt(r.moeLayers * r.expertsActivePerLayer)}</td></tr>`; // C × T × (min(J, I) ÷ I) or C × T × min(J, I)
+  html += `<tr><td>MoE active param count</td><td>${fmt(r.moeLayers * r.expertsActivePerLayer)}</td></tr>`; // C × Q × (min(J, I) ÷ I) or C × Q × min(J, I)
   html += `<tr><td>MoE share of active (%)</td><td>${r.moeExpertsPct.toFixed(4)}%</td></tr>`; // AN
-  html += `<tr><td>Total MoE param count (excluding shared expert)</td><td>${fmt(r.moeExpertTotal)}</td></tr>`; // C × T × I (experts total across MoE layers)
+  html += `<tr><td>Total MoE param count</td><td>${fmt(r.moeExpertTotal)}</td></tr>`; // C × Q × I (experts total across MoE layers)
   html += `<tr><td>Total MLP param count</td><td>${fmt(r.totalMlp)}</td></tr>`; // AO
   html += `<tr><td>MoE inactive per token count</td><td>${fmt(r.moeInactivePerToken)}</td></tr>`; // AH
   html += `<tr><td>Total attention param count</td><td>${fmt(r.totalAttn)}</td></tr>`; // AP
@@ -158,11 +158,11 @@ function renderExplanation(r) {
   html += renderRow('AB', 'Dense layer(s) total params', fmt(r.denseTotal), `${fmt(r.dPerLayer)} × ${fmt(r.denseLayers)} = ${fmt(r.denseTotal)}`, 'AA × B = AB');
 
   const acNumeric = `${fmt(r.mAttn)} + ${fmt(r.mNormsTrans)} + ${fmt(r.mSharedFfn)} + ${fmt(r.sharedPerLayer)} = ${fmt(r.mAlwaysPerLayer)}`;
-  const acLetters = r.hasShared ? (r.sharedScope === 'per_layer' ? 'N + O + S + M = AC' : 'N + O + S + M/C = AC') : 'N + O + S = AC';
+  const acLetters = r.hasShared ? (r.sharedScope === 'per_layer' ? 'N + O + P + M = AC' : 'N + O + P + M/C = AC') : 'N + O + P = AC';
   html += renderRow('AC', 'MoE layers always-active per-layer params', fmt(r.mAlwaysPerLayer), acNumeric, acLetters);
 
   const expertsLayerExplainNum = r.expertsIncludeDim ? `${fmt(r.mExpertsInput)} = ${fmt(r.expertsPerLayerTotal)}` : `${fmt(r.mExpertsInput)} × ${fmt(r.expertsPer)} = ${fmt(r.expertsPerLayerTotal)}`;
-  const expertsLayerExplainLetters = r.expertsIncludeDim ? 'T = AD' : 'T × I = AD';
+  const expertsLayerExplainLetters = r.expertsIncludeDim ? 'Q = AD' : 'Q × I = AD';
   html += renderRow('AD', 'MoE experts per-layer params', fmt(r.expertsPerLayerTotal), expertsLayerExplainNum, expertsLayerExplainLetters);
 
   const moeTotalNum = `${fmt(r.moeLayers)} × (${fmt(r.mAlwaysPerLayer)} + ${fmt(r.expertsPerLayerTotal)}) = ${fmt(r.moeTotal)}`;
@@ -170,7 +170,7 @@ function renderExplanation(r) {
   html += renderRow('AE', 'MoE layers total params', fmt(r.moeTotal), moeTotalNum, moeTotalLetters);
 
   const expertsActiveExplainNum = r.expertsIncludeDim ? (r.expertsPer > 0 ? `${fmt(r.mExpertsInput)} × (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)})` : `${fmt(r.mExpertsInput)} × 0`) : `${fmt(r.mExpertsInput)} × ${fmt(r.activeExpertsClamped)}`;
-  const expertsActiveExplainLetters = r.expertsIncludeDim ? (r.expertsPer > 0 ? 'T × (min(J, I) ÷ I)' : 'T × 0') : 'T × min(J, I)';
+  const expertsActiveExplainLetters = r.expertsIncludeDim ? (r.expertsPer > 0 ? 'Q × (min(J, I) ÷ I)' : 'Q × 0') : 'Q × min(J, I)';
   const moeActiveNum = `${fmt(r.moeLayers)} × (${fmt(r.mAlwaysPerLayer)} + ${expertsActiveExplainNum}) = ${fmt(r.moeActive)}`;
   const moeActiveLetters = `C × (AC + ${expertsActiveExplainLetters}) = AF`;
   html += renderRow('AF', 'MoE layers total active params', fmt(r.moeActive), moeActiveNum, moeActiveLetters);
@@ -182,8 +182,8 @@ function renderExplanation(r) {
     ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (1 − (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)})) = ${fmt(r.moeInactivePerToken)}`
     : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (${fmt(r.expertsPer)} − ${fmt(r.activeExpertsClamped)}) = ${fmt(r.moeInactivePerToken)}`;
   const moeInactiveLetters = r.expertsIncludeDim
-    ? `C × T × (1 − (min(J, I) ÷ I)) = AH`
-    : `C × T × (I − min(J, I)) = AH`;
+    ? `C × Q × (1 − (min(J, I) ÷ I)) = AH`
+    : `C × Q × (I − min(J, I)) = AH`;
   html += renderRow('AH', 'MoE inactive per token param count', fmt(r.moeInactivePerToken), moeInactiveNum, moeInactiveLetters);
 
   const denseActiveNum = `${fmt(r.embedCount)} + ${fmt(r.preFirstCount)} + ${fmt(r.denseTotal)} = ${fmt(r.denseActive)}`;
@@ -206,7 +206,7 @@ function renderExplanation(r) {
 
   const sharedTotalLetters2 = r.hasShared ? (r.sharedScope === 'per_layer' ? ' + C × M' : ' + M') : '';
   const totalMlpNum = `${fmt(r.denseLayers)} × ${fmt(r.dFfn)} + ${fmt(r.moeLayers)} × ${fmt(r.mSharedFfn)} + ${fmt(r.moeLayers)} × ${fmt(r.expertsPerLayerTotal)}` + (r.hasShared ? ` + ${fmt(r.sharedExpertTotal)}` : '') + ` = ${fmt(r.totalMlp)}`;
-  html += renderRow('AO', 'Total MLP param count', fmt(r.totalMlp), totalMlpNum, `B × H + C × S + C × AD${sharedTotalLetters2} = AO`);
+  html += renderRow('AO', 'Total MLP param count', fmt(r.totalMlp), totalMlpNum, `B × H + C × P + C × AD${sharedTotalLetters2} = AO`);
 
   const totalAttnNum = `${fmt(r.denseLayers)} × ${fmt(r.dAttn)} + ${fmt(r.moeLayers)} × ${fmt(r.mAttn)} = ${fmt(r.totalAttn)}`;
   html += renderRow('AP', 'Total attention param count', fmt(r.totalAttn), totalAttnNum, 'B × G + C × N = AP');
@@ -217,8 +217,8 @@ function renderExplanation(r) {
     ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)}) = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`
     : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × ${fmt(r.activeExpertsClamped)} = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`;
   const moeExpertsActiveLetters = r.expertsIncludeDim
-    ? 'C × T × (min(J, I) ÷ I) = AQ'
-    : 'C × T × min(J, I) = AQ';
+    ? 'C × Q × (min(J, I) ÷ I) = AQ'
+    : 'C × Q × min(J, I) = AQ';
   html += renderRow('AQ', 'MoE experts active param count', fmt(r.moeLayers * r.expertsActivePerLayer), moeExpertsActiveNum, moeExpertsActiveLetters);
 
   // AR: MoE experts total param count (experts only)
@@ -226,8 +226,8 @@ function renderExplanation(r) {
     ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} = ${fmt(r.moeExpertTotal)}`
     : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × ${fmt(r.expertsPer)} = ${fmt(r.moeExpertTotal)}`;
   const moeExpertsTotalLetters = r.expertsIncludeDim
-    ? 'C × T = AR'
-    : 'C × T × I = AR';
+    ? 'C × Q = AR'
+    : 'C × Q × I = AR';
   html += renderRow('AR', 'MoE experts total param count', fmt(r.moeExpertTotal), moeExpertsTotalNum, moeExpertsTotalLetters);
 
   return html;
@@ -300,6 +300,125 @@ function updateSharedState() {
   if (sharedTA) sharedTA.disabled = !en;
 }
 
+// Prefill presets for the parameter calculator
+function prefillParamModel(model) {
+  if (model === 'kimi-k2') {
+    // B, C
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    const setChecked = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+
+    setVal('dense_layers', '1'); // B
+    setVal('moe_layers', '60'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[163840, 7168]',
+      '[163840, 7168]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[7168]'
+    ].join('\n'));
+
+    // F: Dense layer norms
+    setVal('dense_norms', [
+      '[7168]',
+      '[7168]'
+    ].join('\n'));
+
+    // G: Dense attention tensors
+    setVal('dense_attn', [
+      '[512]',
+      '[576, 7168]',
+      '[5, 56]',
+      '[16384, 512]',
+      '[128, 4]',
+      '[7168, 8192]',
+      '[56, 64]',
+      '[1536]',
+      '[1536, 7168]',
+      '[12, 56]',
+      '[12288, 1536]',
+      '[96, 12]',
+      '[56]'
+    ].join('\n'));
+
+    // H: Dense FFN tensors
+    setVal('dense_ffn', [
+      '[7168, 18432]',
+      '[56, 144]',
+      '[18432, 7168]',
+      '[144, 56]',
+      '[18432, 7168]',
+      '[144, 56]'
+    ].join('\n'));
+
+    // I, J
+    setVal('experts_per_layer', '384'); // I
+    setVal('active_experts', '8'); // J
+
+    // K, L, M: Shared expert
+    setChecked('has_shared_expert', true);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', [
+      '[7168, 2048]',
+      '[56, 16]',
+      '[7168, 2048]',
+      '[56, 16]',
+      '[7168, 2048]',
+      '[56, 16]'
+    ].join('\n'));
+
+    // N: MoE attention tensors (same set as G per description)
+    setVal('moe_attn', [
+      '[512]',
+      '[576, 7168]',
+      '[5, 56]',
+      '[16384, 512]',
+      '[128, 4]',
+      '[7168, 8192]',
+      '[56, 64]',
+      '[1536]',
+      '[1536, 7168]',
+      '[12, 56]',
+      '[12288, 1536]',
+      '[96, 12]',
+      '[56]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[7168]',
+      '[7168]'
+    ].join('\n'));
+
+    // P: Shared FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[384]',
+      '[384, 7168]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (per layer; may include E)
+    setVal('moe_experts', [
+      '[7168, 2048]',
+      '[56, 16]',
+      '[2048, 7168]',
+      '[16, 56]',
+      '[2048, 7168]',
+      '[16, 56]'
+    ].join('\n'));
+
+    // Experts include E: unchecked per request
+    setChecked('experts_include_dim', false);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('paramcalc-form');
   const btn = document.getElementById('calculate-btn');
@@ -325,4 +444,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize computed total layers and first render
   updateComputedTotalLayers();
+
+  // Preset dropdown wiring
+  const presetSel = document.getElementById('param-model-select');
+  presetSel?.addEventListener('change', () => {
+    const v = presetSel.value;
+    if (v === 'custom') return; // keep user values
+    prefillParamModel(v);
+  });
 });
