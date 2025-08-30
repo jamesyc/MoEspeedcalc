@@ -135,6 +135,7 @@
     </div>
 
     <div id="results" class="results hidden"></div>
+    <div id="explanation" class="results hidden"></div>
   </div>
 
   <script>
@@ -224,24 +225,44 @@
     function renderRow(code, title, valueStr, numericEq, lettersEq) {
       return (
         '<div class="result-row" style="display:block">' +
-          // Line 1: title … letter equation
+          // Line 1: title and letter equation
           '<div class="row-line" style="display:flex; align-items:baseline; gap:8px">' +
             `<div class="left" style="flex:2; text-align:left"><span class="result-title">${code}: ${title}</span></div>` +
-            '<div class="dots" style="flex:1; text-align:center; opacity:0.5">…</div>' +
             `<div class="right" style="flex:3; text-align:right"><div class="equation">${lettersEq || ''}</div></div>` +
           '</div>' +
-          // Line 2: value … numeric equation
+          // Line 2: value and numeric equation
           '<div class="row-line" style="display:flex; align-items:baseline; gap:8px">' +
             `<div class="left" style="flex:1.5; text-align:left"><div class="result-value">${valueStr}</div></div>` +
-            '<div class="dots" style="flex:1; text-align:center; opacity:0.5">…</div>' +
             `<div class="right" style="flex:3.5; text-align:right"><div class="equation">${numericEq}</div></div>` +
           '</div>' +
         '</div>'
       );
     }
 
-    const results = document.getElementById('results');
-    let html = '<h2>Explanation</h2>';
+    const resultsBox = document.getElementById('results');
+    const explanationBox = document.getElementById('explanation');
+    let summaryHtml = '';
+    let html = '';
+
+    // Summary Results table (separate box)
+    summaryHtml += '<h2>Results</h2>';
+    summaryHtml += '<table class="results-table" style="width:100%; border-collapse:collapse">';
+    summaryHtml += '<tbody>';
+    summaryHtml += `<tr><td style="padding:4px 6px">Exact total param count</td><td style="padding:4px 6px; text-align:right">${fmt(totalParams)}</td></tr>`; // AJ
+    summaryHtml += `<tr><td style="padding:4px 6px">Exact active param count</td><td style="padding:4px 6px; text-align:right">${fmt(totalActive)}</td></tr>`; // AK
+    summaryHtml += `<tr><td style="padding:4px 6px">Dense active param count</td><td style="padding:4px 6px; text-align:right">${fmt(denseActive)}</td></tr>`; // AI
+    summaryHtml += `<tr><td style="padding:4px 6px">% of active that are dense</td><td style="padding:4px 6px; text-align:right">${denseActivePct.toFixed(4)}%</td></tr>`;
+    summaryHtml += `<tr><td style="padding:4px 6px">MoE active param count</td><td style="padding:4px 6px; text-align:right">${fmt(moeActive)}</td></tr>`; // AF
+    summaryHtml += `<tr><td style="padding:4px 6px">% of active that are MoE</td><td style="padding:4px 6px; text-align:right">${moeActivePct.toFixed(4)}%</td></tr>`;
+    summaryHtml += `<tr><td style="padding:4px 6px">Total MoE param count</td><td style="padding:4px 6px; text-align:right">${fmt(moeTotal)}</td></tr>`; // AE
+    summaryHtml += `<tr><td style="padding:4px 6px">Total MLP param count</td><td style="padding:4px 6px; text-align:right">${fmt(totalMlp)}</td></tr>`; // AO
+    summaryHtml += `<tr><td style="padding:4px 6px">MoE inactive per token count</td><td style="padding:4px 6px; text-align:right">${fmt(moeInactivePerToken)}</td></tr>`; // AH
+    summaryHtml += `<tr><td style="padding:4px 6px">Total attention param count</td><td style="padding:4px 6px; text-align:right">${fmt(totalAttn)}</td></tr>`; // AP
+    summaryHtml += '</tbody>';
+    summaryHtml += '</table>';
+
+    // Detailed explanation
+    html += '<h2>Explanation</h2>';
 
     html += renderRow('AA', 'Dense layer(s) per-layer params', fmt(dPerLayer), `${fmt(dNorms)} + ${fmt(dAttn)} + ${fmt(dFfn)} = ${fmt(dPerLayer)}`, 'F + G + H = AA');
 
@@ -307,10 +328,12 @@
     const totalAttnNum = `${fmt(denseLayers)} × ${fmt(dAttn)} + ${fmt(moeLayers)} × ${fmt(mAttn)} = ${fmt(totalAttn)}`;
     html += renderRow('AP', 'Total attention param count', fmt(totalAttn), totalAttnNum, 'B × G + C × N = AP');
 
-    results.innerHTML = html;
-    results.classList.remove('hidden');
-    if (typeof results.scrollIntoView === 'function') {
-      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    resultsBox.innerHTML = summaryHtml;
+    explanationBox.innerHTML = html;
+    resultsBox.classList.remove('hidden');
+    explanationBox.classList.remove('hidden');
+    if (typeof resultsBox.scrollIntoView === 'function') {
+      resultsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 
