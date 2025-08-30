@@ -211,6 +211,25 @@ function renderExplanation(r) {
   const totalAttnNum = `${fmt(r.denseLayers)} × ${fmt(r.dAttn)} + ${fmt(r.moeLayers)} × ${fmt(r.mAttn)} = ${fmt(r.totalAttn)}`;
   html += renderRow('AP', 'Total attention param count', fmt(r.totalAttn), totalAttnNum, 'B × G + C × N = AP');
 
+  // Additional explanations for summary-only rows
+  // AQ: MoE experts active param count (experts only)
+  const moeExpertsActiveNum = r.expertsIncludeDim
+    ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)}) = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`
+    : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × ${fmt(r.activeExpertsClamped)} = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`;
+  const moeExpertsActiveLetters = r.expertsIncludeDim
+    ? 'C × T × (min(J, I) ÷ I) = AQ'
+    : 'C × T × min(J, I) = AQ';
+  html += renderRow('AQ', 'MoE experts active param count', fmt(r.moeLayers * r.expertsActivePerLayer), moeExpertsActiveNum, moeExpertsActiveLetters);
+
+  // AR: MoE experts total param count (experts only)
+  const moeExpertsTotalNum = r.expertsIncludeDim
+    ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} = ${fmt(r.moeExpertTotal)}`
+    : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × ${fmt(r.expertsPer)} = ${fmt(r.moeExpertTotal)}`;
+  const moeExpertsTotalLetters = r.expertsIncludeDim
+    ? 'C × T = AR'
+    : 'C × T × I = AR';
+  html += renderRow('AR', 'MoE experts total param count', fmt(r.moeExpertTotal), moeExpertsTotalNum, moeExpertsTotalLetters);
+
   return html;
 }
 
