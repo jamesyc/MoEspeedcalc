@@ -416,6 +416,100 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'glm-4.7') {
+    // B, C
+    setVal('dense_layers', '3'); // B
+    setVal('moe_layers', '89'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[151552, 5120]',
+      '[151552, 5120]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[5120]'
+    ].join('\n'));
+
+    // F: Dense layer norms
+    setVal('dense_norms', [
+      '[5120]',
+      '[5120]',
+      '[128]',
+      '[128]'
+    ].join('\n'));
+
+    // G: Dense attention tensors
+    setVal('dense_attn', [
+      '[12288, 5120]',
+      '[12288]',
+      '[1024, 5120]',
+      '[1024]',
+      '[1024, 5120]',
+      '[1024]',
+      '[5120, 12288]'
+    ].join('\n'));
+
+    // H: Dense FFN tensors
+    setVal('dense_ffn', [
+      '[12288, 5120]',
+      '[12288, 5120]',
+      '[5120, 12288]'
+    ].join('\n'));
+
+    // I, J
+    setVal('experts_per_layer', '160'); // I
+    setVal('active_experts', '8'); // J
+
+    // K, L, M: Shared expert
+    setChecked('has_shared_expert', true);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', [
+      '[1536, 5120]',
+      '[1536, 5120]',
+      '[5120, 1536]'
+    ].join('\n'));
+
+    // N: MoE attention tensors (same set as G)
+    setVal('moe_attn', [
+      '[12288, 5120]',
+      '[12288]',
+      '[1024, 5120]',
+      '[1024]',
+      '[1024, 5120]',
+      '[1024]',
+      '[5120, 12288]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[5120]',
+      '[5120]',
+      '[128]',
+      '[128]'
+    ].join('\n'));
+
+    // P: Gate input, biases, other FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[160, 5120]',
+      '[160]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (includes expert dimension E)
+    setVal('moe_experts', [
+      '[160, 1536, 5120]',
+      '[160, 1536, 5120]',
+      '[160, 5120, 1536]'
+    ].join('\n'));
+
+    // Experts include E: checked
+    setChecked('experts_include_dim', true);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   } else if (model === 'glm-5') {
     // B, C
     setVal('dense_layers', '3'); // B
