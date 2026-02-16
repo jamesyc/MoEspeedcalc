@@ -720,6 +720,71 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'qwen3-235b') {
+    // B, C
+    setVal('dense_layers', '0'); // B
+    setVal('moe_layers', '94'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[151936, 4096]',
+      '[151936, 4096]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[4096]'
+    ].join('\n'));
+
+    // F/G/H: Dense layers are unused for this model
+    setVal('dense_norms', '');
+    setVal('dense_attn', '');
+    setVal('dense_ffn', '');
+
+    // I, J
+    setVal('experts_per_layer', '128'); // I
+    setVal('active_experts', '8'); // J
+
+    // K, L, M: Shared expert disabled
+    setChecked('has_shared_expert', false);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', '');
+
+    // N: MoE attention tensors
+    setVal('moe_attn', [
+      '[8192, 4096]',
+      '[512, 4096]',
+      '[512, 4096]',
+      '[4096, 8192]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[4096]',
+      '[4096]',
+      '[128]',
+      '[128]'
+    ].join('\n'));
+
+    // P: Gate input, biases, other FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[128, 4096]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (includes expert dimension E)
+    setVal('moe_experts', [
+      '[128, 1536, 4096]',
+      '[128, 1536, 4096]',
+      '[128, 4096, 1536]'
+    ].join('\n'));
+
+    // Experts include E: checked
+    setChecked('experts_include_dim', true);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   } else if (model === 'deepseek-r1-0528-mtp') {
     // Start from base DeepSeek R1 0528, then override differences
     prefillParamModel('deepseek-r1-0528');
