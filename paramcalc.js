@@ -605,7 +605,7 @@ function prefillParamModel(model) {
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
   } else if (model === 'glm-5') {
-    // B, C
+    // B, C (base non-MTP)
     setVal('dense_layers', '3'); // B
     setVal('moe_layers', '75'); // C
 
@@ -617,6 +617,7 @@ function prefillParamModel(model) {
     ].join('\n'));
 
     // E: Pre/post first/last norms (optional)
+    // Base GLM-5 includes final model.norm only.
     setVal('pre_first_norms', [
       '[6144]'
     ].join('\n'));
@@ -703,6 +704,27 @@ function prefillParamModel(model) {
     setChecked('experts_include_dim', true);
 
     // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
+  } else if (model === 'glm-5-mtp') {
+    // Start from base GLM-5, then override MTP-specific differences
+    prefillParamModel('glm-5');
+
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+
+    // MTP adds an extra MoE layer (layer 78)
+    setVal('moe_layers', '76');
+
+    // Include one-off MTP tensors from layer 78:
+    // eh_proj.weight, enorm.weight, hnorm.weight, shared_head.norm.weight
+    setVal('pre_first_norms', [
+      '[6144]',
+      '[12288, 6144]',
+      '[6144]',
+      '[6144]',
+      '[6144]'
+    ].join('\n'));
+
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
   } else if (model === 'deepseek-v3') {
