@@ -720,6 +720,68 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'minimax-m2.5') {
+    // B, C
+    setVal('dense_layers', '0'); // B
+    setVal('moe_layers', '62'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[200064, 3072]',
+      '[3072, 200064]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[3072]'
+    ].join('\n'));
+
+    // F/G/H are unused for this model (B=0)
+
+    // I, J
+    setVal('experts_per_layer', '256'); // I
+    setVal('active_experts', '8'); // J
+
+    // K, L, M: Shared expert disabled
+    setChecked('has_shared_expert', false);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+
+    // N: MoE attention tensors
+    setVal('moe_attn', [
+      '[3072, 6144]',
+      '[3072, 1024]',
+      '[3072, 1024]',
+      '[6144, 3072]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[3072]',
+      '[3072]',
+      '[6144]',
+      '[1024]'
+    ].join('\n'));
+
+    // P: Gate input, biases, other FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[3072, 256]',
+      '[256]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (includes expert dimension E)
+    setVal('moe_experts', [
+      '[256, 1536, 3072]',
+      '[256, 3072, 1536]',
+      '[256, 1536, 3072]'
+    ].join('\n'));
+
+    // Experts include E: checked
+    setChecked('experts_include_dim', true);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   } else if (model === 'qwen3-235b') {
     // B, C
     setVal('dense_layers', '0'); // B
