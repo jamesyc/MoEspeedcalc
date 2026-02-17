@@ -934,11 +934,9 @@ function prefillParamModel(model) {
 
     // Q: MoE experts tensors (includes expert dimension E)
     setVal('moe_experts', [
-      '[32, 5760, 90, 16]',
-      '[32, 5760, 90]',
+      '[32, 5760, 2880]',
+      '[32, 2880, 5760]',
       '[32, 5760]',
-      '[32, 2880, 90, 16]',
-      '[32, 2880, 90]',
       '[32, 2880]'
     ].join('\n'));
 
@@ -1006,11 +1004,9 @@ function prefillParamModel(model) {
 
     // Q: MoE experts tensors (includes expert dimension E)
     setVal('moe_experts', [
-      '[128, 5760, 90, 16]',
-      '[128, 5760, 90]',
+      '[128, 5760, 2880]',
+      '[128, 2880, 5760]',
       '[128, 5760]',
-      '[128, 2880, 90, 16]',
-      '[128, 2880, 90]',
       '[128, 2880]'
     ].join('\n'));
 
