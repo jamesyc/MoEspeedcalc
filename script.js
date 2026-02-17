@@ -39,7 +39,7 @@ function prefillModel(model) {
     moeParamsEl.value = 14193524736;
     // Preserve KV cache value
   } else if (model === 'deepseek') {
-    // Deepseek‑R1‑0528 preset parameters
+    // Deepseek V3 preset parameters
     totalParamsEl.value = 671026419200;
     // Always‑active dense parameters per token
     denseParamsEl.value = 14563317248;
