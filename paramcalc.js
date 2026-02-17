@@ -611,7 +611,7 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
-  } else if (model === 'deepseek-r1-0528') {
+  } else if (model === 'deepseek-v3') {
     // B, C
     setVal('dense_layers', '3'); // B
     setVal('moe_layers', '58'); // C
@@ -785,9 +785,9 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
-  } else if (model === 'deepseek-r1-0528-mtp') {
-    // Start from base DeepSeek R1 0528, then override differences
-    prefillParamModel('deepseek-r1-0528');
+  } else if (model === 'deepseek-v3-mtp') {
+    // Start from base Deepseek V3, then override differences
+    prefillParamModel('deepseek-v3');
 
     const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
 
