@@ -876,6 +876,71 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'qwen3-30b') {
+    // B, C
+    setVal('dense_layers', '0'); // B
+    setVal('moe_layers', '48'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[151936, 2048]',
+      '[151936, 2048]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[2048]'
+    ].join('\n'));
+
+    // F/G/H: Dense layers are unused for this model
+    setVal('dense_norms', '');
+    setVal('dense_attn', '');
+    setVal('dense_ffn', '');
+
+    // I, J
+    setVal('experts_per_layer', '128'); // I
+    setVal('active_experts', '8'); // J
+
+    // K, L, M: Shared expert disabled
+    setChecked('has_shared_expert', false);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', '');
+
+    // N: MoE attention tensors
+    setVal('moe_attn', [
+      '[4096, 2048]',
+      '[512, 2048]',
+      '[512, 2048]',
+      '[2048, 4096]',
+      '[128]',
+      '[128]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[2048]',
+      '[2048]'
+    ].join('\n'));
+
+    // P: Gate input, biases, other FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[128, 2048]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (includes expert dimension E)
+    setVal('moe_experts', [
+      '[128, 768, 2048]',
+      '[128, 768, 2048]',
+      '[128, 2048, 768]'
+    ].join('\n'));
+
+    // Experts include E: checked
+    setChecked('experts_include_dim', true);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   } else if (model === 'qwen3-235b') {
     // B, C
     setVal('dense_layers', '0'); // B
