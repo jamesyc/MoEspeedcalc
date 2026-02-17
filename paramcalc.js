@@ -876,6 +876,78 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'gpt-oss-20b') {
+    // B, C
+    setVal('dense_layers', '0'); // B
+    setVal('moe_layers', '24'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[201088, 2880]',
+      '[201088, 2880]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[2880]'
+    ].join('\n'));
+
+    // F/G/H: Dense layers are unused for this model
+    setVal('dense_norms', '');
+    setVal('dense_attn', '');
+    setVal('dense_ffn', '');
+
+    // I, J
+    setVal('experts_per_layer', '32'); // I
+    setVal('active_experts', '4'); // J
+
+    // K, L, M: Shared expert disabled
+    setChecked('has_shared_expert', false);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', '');
+
+    // N: MoE attention tensors
+    setVal('moe_attn', [
+      '[4096, 2880]',
+      '[4096]',
+      '[512, 2880]',
+      '[512]',
+      '[512, 2880]',
+      '[512]',
+      '[2880, 4096]',
+      '[2880]',
+      '[64]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[2880]',
+      '[2880]'
+    ].join('\n'));
+
+    // P: Gate input, biases, other FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[32, 2880]',
+      '[32]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (includes expert dimension E)
+    setVal('moe_experts', [
+      '[32, 5760, 90, 16]',
+      '[32, 5760, 90]',
+      '[32, 5760]',
+      '[32, 2880, 90, 16]',
+      '[32, 2880, 90]',
+      '[32, 2880]'
+    ].join('\n'));
+
+    // Experts include E: checked
+    setChecked('experts_include_dim', true);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   } else if (model === 'gpt-oss-120b') {
     // B, C
     setVal('dense_layers', '0'); // B
