@@ -510,6 +510,100 @@ function prefillParamModel(model) {
     // Update computed A and render
     updateComputedTotalLayers();
     calculateAndRender({ scroll: false });
+  } else if (model === 'glm-4.7-flash') {
+    // B, C
+    setVal('dense_layers', '1'); // B
+    setVal('moe_layers', '47'); // C
+
+    // D: Embedding/output matrices
+    setVal('embedding_shapes', [
+      '[154880, 2048]',
+      '[154880, 2048]'
+    ].join('\n'));
+
+    // E: Pre/post first/last norms (optional)
+    setVal('pre_first_norms', [
+      '[2048]',
+      '[2048]',
+      '[2048]',
+      '[2048]',
+      '[2048, 4096]'
+    ].join('\n'));
+
+    // F: Dense layer norms
+    setVal('dense_norms', [
+      '[2048]',
+      '[2048]',
+      '[768]',
+      '[512]'
+    ].join('\n'));
+
+    // G: Dense attention tensors
+    setVal('dense_attn', [
+      '[768, 2048]',
+      '[5120, 768]',
+      '[576, 2048]',
+      '[8960, 512]',
+      '[2048, 5120]'
+    ].join('\n'));
+
+    // H: Dense FFN tensors
+    setVal('dense_ffn', [
+      '[10240, 2048]',
+      '[10240, 2048]',
+      '[2048, 10240]'
+    ].join('\n'));
+
+    // I, J
+    setVal('experts_per_layer', '64'); // I
+    setVal('active_experts', '4'); // J
+
+    // K, L, M: Shared expert
+    setChecked('has_shared_expert', true);
+    updateSharedState();
+    setVal('shared_expert_scope', 'per_layer');
+    setVal('shared_expert_tensors', [
+      '[1536, 2048]',
+      '[1536, 2048]',
+      '[2048, 1536]'
+    ].join('\n'));
+
+    // N: MoE attention tensors
+    setVal('moe_attn', [
+      '[768, 2048]',
+      '[5120, 768]',
+      '[576, 2048]',
+      '[8960, 512]',
+      '[2048, 5120]'
+    ].join('\n'));
+
+    // O: MoE norms/transitional
+    setVal('moe_transitional', [
+      '[2048]',
+      '[2048]',
+      '[768]',
+      '[512]'
+    ].join('\n'));
+
+    // P: Gate input, biases, other FFN (always active)
+    setVal('moe_shared_ffn', [
+      '[64, 2048]',
+      '[64]'
+    ].join('\n'));
+
+    // Q: MoE experts tensors (includes expert dimension E)
+    setVal('moe_experts', [
+      '[64, 1536, 2048]',
+      '[64, 1536, 2048]',
+      '[64, 2048, 1536]'
+    ].join('\n'));
+
+    // Experts include E: checked
+    setChecked('experts_include_dim', true);
+
+    // Update computed A and render
+    updateComputedTotalLayers();
+    calculateAndRender({ scroll: false });
   } else if (model === 'glm-5') {
     // B, C
     setVal('dense_layers', '3'); // B
