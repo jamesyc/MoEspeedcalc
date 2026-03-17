@@ -86,7 +86,8 @@ function makeMoeBucket(label, count, attnText, transitionalText, sharedFfnText, 
   const normsTrans = sumShapes(transitionalText);
   const sharedFfn = sumShapes(sharedFfnText);
   const expertsInput = sumShapes(expertsText);
-  const alwaysPerLayer = attn + normsTrans + sharedFfn + sharedPerLayer;
+  const bucketSharedPerLayer = count > 0 ? sharedPerLayer : 0;
+  const alwaysPerLayer = attn + normsTrans + sharedFfn + bucketSharedPerLayer;
   const expertsPerLayerTotal = expertsIncludeDim ? expertsInput : (expertsInput * expertsPer);
   const expertsActivePerLayer = expertsIncludeDim
     ? (expertsPer > 0 ? expertsInput * (activeExpertsClamped / expertsPer) : 0)
@@ -98,7 +99,7 @@ function makeMoeBucket(label, count, attnText, transitionalText, sharedFfnText, 
     normsTrans,
     sharedFfn,
     expertsInput,
-    sharedPerLayer,
+    sharedPerLayer: bucketSharedPerLayer,
     alwaysPerLayer,
     expertsPerLayerTotal,
     expertsActivePerLayer,
@@ -106,7 +107,7 @@ function makeMoeBucket(label, count, attnText, transitionalText, sharedFfnText, 
     expertTotal: count * expertsPerLayerTotal,
     activeTotal: count * (alwaysPerLayer + expertsActivePerLayer),
     inactivePerToken: count * Math.max(0, expertsPerLayerTotal - expertsActivePerLayer),
-    mlpTotal: count * (sharedFfn + expertsPerLayerTotal + (hasShared ? sharedPerLayer : 0)),
+    mlpTotal: count * (sharedFfn + expertsPerLayerTotal + (hasShared ? bucketSharedPerLayer : 0)),
   };
 }
 
@@ -168,15 +169,18 @@ const STABLE_LABEL_REFS = Object.freeze({
   explanation_moe_ssm_attention_experts: 'Z31',
   explanation_moe_total: 'Z32',
   explanation_moe_active: 'Z33',
+  explanation_moe_always_total: 'Z45',
   explanation_dense_active: 'Z34',
   explanation_total_params: 'Z35',
   explanation_total_active: 'Z36',
   explanation_total_always_active: 'Z37',
   explanation_always_share: 'Z38',
+  explanation_moe_share_active: 'Z47',
   explanation_total_mlp: 'Z39',
   explanation_total_attn: 'Z40',
   explanation_moe_experts_active: 'Z41',
   explanation_moe_experts_total: 'Z42',
+  explanation_moe_inactive_per_token: 'Z46',
 });
 
 const FORM_STABLE_LABEL_REFS = Object.freeze(
@@ -519,12 +523,13 @@ function renderSummary(r) {
   html += `<tr><td>Exact total param count</td><td>${fmt(r.totalParams)}</td></tr>`;
   html += `<tr><td>Exact active param count</td><td>${fmt(r.totalActive)}</td></tr>`;
   html += `<tr><td>Total always-active param count</td><td>${fmt(r.totalAlwaysActive)}</td></tr>`;
+  html += `<tr><td>MoE layers total always-active param count</td><td>${fmt(r.moeAlwaysTotal)}</td></tr>`;
   html += `<tr><td>Always-active share of active (%)</td><td>${r.alwaysActivePct.toFixed(4)}%</td></tr>`;
   html += `<tr><td>MoE experts active param count</td><td>${fmt(r.moeExpertsOnly)}</td></tr>`;
   html += `<tr><td>MoE share of active (%)</td><td>${r.moeExpertsPct.toFixed(4)}%</td></tr>`;
   html += `<tr><td>Total MoE experts param count</td><td>${fmt(r.moeExpertTotal)}</td></tr>`;
   html += `<tr><td>Total MLP param count</td><td>${fmt(r.totalMlp)}</td></tr>`;
-  html += `<tr><td>MoE inactive per token count</td><td>${fmt(r.moeInactivePerToken)}</td></tr>`;
+  html += `<tr><td>MoE inactive per token param count</td><td>${fmt(r.moeInactivePerToken)}</td></tr>`;
   html += `<tr><td>Total attention/SSM param count</td><td>${fmt(r.totalAttn)}</td></tr>`;
   html += '</tbody></table>';
   return html;
@@ -535,15 +540,24 @@ function renderDenseBucketRow(code, bucket, suffix) {
   const refKey = bucket.label === 'Dense attention-only'
     ? 'explanation_dense_attention_only'
     : 'explanation_dense_ssm_attention';
-  return renderRow(code, `${bucket.label} per-layer params${suffix || ''}`, fmt(bucket.perLayer), numeric, 'norms + attention/SSM + FFN', STABLE_LABEL_REFS[refKey]);
+  const detail = bucket.label === 'Dense attention-only' ? 'G + H + I' : 'J + K + L';
+  return renderRow(code, `${bucket.label} per-layer params${suffix || ''}`, fmt(bucket.perLayer), numeric, detail, STABLE_LABEL_REFS[refKey]);
 }
 
-function renderMoeAlwaysRow(code, bucket) {
+function getSharedPerLayerFormula(r) {
+  if (!r.hasShared) return '0';
+  if (r.sharedScope === 'per_layer') return 'P';
+  return 'P ÷ (C + D)';
+}
+
+function renderMoeAlwaysRow(code, bucket, r) {
   const numeric = `${fmt(bucket.attn)} + ${fmt(bucket.normsTrans)} + ${fmt(bucket.sharedFfn)} + ${fmt(bucket.sharedPerLayer)} = ${fmt(bucket.alwaysPerLayer)}`;
   const refKey = bucket.label === 'MoE attention-only'
     ? 'explanation_moe_attention_only_always'
     : 'explanation_moe_ssm_attention_always';
-  return renderRow(code, `${bucket.label} always-active per-layer params`, fmt(bucket.alwaysPerLayer), numeric, 'attention/SSM + transitional + always-active FFN + shared expert', STABLE_LABEL_REFS[refKey]);
+  const shared = getSharedPerLayerFormula(r);
+  const detail = bucket.label === 'MoE attention-only' ? `Q + R + S + ${shared}` : `U + V + W + ${shared}`;
+  return renderRow(code, `${bucket.label} always-active per-layer params`, fmt(bucket.alwaysPerLayer), numeric, detail, STABLE_LABEL_REFS[refKey]);
 }
 
 function renderMoeExpertsRow(code, bucket, r) {
@@ -553,24 +567,27 @@ function renderMoeExpertsRow(code, bucket, r) {
   const refKey = bucket.label === 'MoE attention-only'
     ? 'explanation_moe_attention_only_experts'
     : 'explanation_moe_ssm_attention_experts';
-  return renderRow(code, `${bucket.label} experts per-layer params`, fmt(bucket.expertsPerLayerTotal), numeric, r.expertsIncludeDim ? 'expert tensors already include E' : 'per-expert tensors × experts/layer', STABLE_LABEL_REFS[refKey]);
+  const base = bucket.label === 'MoE attention-only' ? 'T' : 'X';
+  const detail = r.expertsIncludeDim ? base : `M × ${base}`;
+  return renderRow(code, `${bucket.label} experts per-layer params`, fmt(bucket.expertsPerLayerTotal), numeric, detail, STABLE_LABEL_REFS[refKey]);
 }
 
 function renderExplanation(r) {
   let html = '<h2>Explanation</h2>';
-  html += renderDenseBucketRow('Y', r.denseAttentionOnly);
-  html += renderDenseBucketRow('Z', r.denseSsmAttention);
+  const shared = getSharedPerLayerFormula(r);
+  html += renderDenseBucketRow('EA', r.denseAttentionOnly);
+  html += renderDenseBucketRow('EB', r.denseSsmAttention);
 
   const denseTotalNum = `${fmt(r.denseAttentionLayers)} × ${fmt(r.denseAttentionOnly.perLayer)} + ${fmt(r.denseSsmAttentionLayers)} × ${fmt(r.denseSsmAttention.perLayer)} = ${fmt(r.denseTotal)}`;
-  html += renderRow('AA', 'Dense layers total params', fmt(r.denseTotal), denseTotalNum, 'dense attention-only count × Y + dense SSM+attention count × Z', STABLE_LABEL_REFS.explanation_dense_total);
+  html += renderRow('EC', 'Dense layers total params', fmt(r.denseTotal), denseTotalNum, 'A × EA + B × EB', STABLE_LABEL_REFS.explanation_dense_total);
 
-  html += renderMoeAlwaysRow('AB', r.moeAttentionOnly);
-  html += renderMoeAlwaysRow('AC', r.moeSsmAttention);
-  html += renderMoeExpertsRow('AD', r.moeAttentionOnly, r);
-  html += renderMoeExpertsRow('AE', r.moeSsmAttention, r);
+  html += renderMoeAlwaysRow('ED', r.moeAttentionOnly, r);
+  html += renderMoeAlwaysRow('EE', r.moeSsmAttention, r);
+  html += renderMoeExpertsRow('EF', r.moeAttentionOnly, r);
+  html += renderMoeExpertsRow('EG', r.moeSsmAttention, r);
 
   const moeTotalNum = `${fmt(r.moeAttentionLayers)} × (${fmt(r.moeAttentionOnly.alwaysPerLayer)} + ${fmt(r.moeAttentionOnly.expertsPerLayerTotal)}) + ${fmt(r.moeSsmAttentionLayers)} × (${fmt(r.moeSsmAttention.alwaysPerLayer)} + ${fmt(r.moeSsmAttention.expertsPerLayerTotal)}) = ${fmt(r.moeTotal)}`;
-  html += renderRow('AF', 'MoE layers total params', fmt(r.moeTotal), moeTotalNum, 'sum of both MoE layer buckets', STABLE_LABEL_REFS.explanation_moe_total);
+  html += renderRow('EH', 'MoE layers total params', fmt(r.moeTotal), moeTotalNum, 'C × (ED + EF) + D × (EE + EG)', STABLE_LABEL_REFS.explanation_moe_total);
 
   const moeActiveAttentionNum = r.expertsIncludeDim
     ? (r.expertsPer > 0
@@ -583,40 +600,51 @@ function renderExplanation(r) {
         : `${fmt(r.moeSsmAttention.expertsInput)} × 0`)
     : `${fmt(r.moeSsmAttention.expertsInput)} × ${fmt(r.activeExpertsClamped)}`;
   const moeActiveNum = `${fmt(r.moeAttentionLayers)} × (${fmt(r.moeAttentionOnly.alwaysPerLayer)} + ${moeActiveAttentionNum}) + ${fmt(r.moeSsmAttentionLayers)} × (${fmt(r.moeSsmAttention.alwaysPerLayer)} + ${moeActiveSsmNum}) = ${fmt(r.moeActive)}`;
-  html += renderRow('AG', 'MoE layers total active params', fmt(r.moeActive), moeActiveNum, 'sum of active parameters from both MoE layer buckets', STABLE_LABEL_REFS.explanation_moe_active);
+  html += renderRow('EI', 'MoE layers total active params', fmt(r.moeActive), moeActiveNum, 'C × (ED + EF × (N ÷ M)) + D × (EE + EG × (N ÷ M))', STABLE_LABEL_REFS.explanation_moe_active);
+
+  const moeAlwaysNum = `${fmt(r.moeAttentionLayers)} × ${fmt(r.moeAttentionOnly.alwaysPerLayer)} + ${fmt(r.moeSsmAttentionLayers)} × ${fmt(r.moeSsmAttention.alwaysPerLayer)} = ${fmt(r.moeAlwaysTotal)}`;
+  html += renderRow('EJ', 'MoE layers total always-active params', fmt(r.moeAlwaysTotal), moeAlwaysNum, 'C × ED + D × EE', STABLE_LABEL_REFS.explanation_moe_always_total);
+
+  const moeInactivePerTokenNum = `${fmt(r.moeAttentionOnly.inactivePerToken)} + ${fmt(r.moeSsmAttention.inactivePerToken)} = ${fmt(r.moeInactivePerToken)}`;
+  html += renderRow('EK', 'MoE inactive per token param count', fmt(r.moeInactivePerToken), moeInactivePerTokenNum, 'C × EF × (1 - N ÷ M) + D × EG × (1 - N ÷ M)', STABLE_LABEL_REFS.explanation_moe_inactive_per_token);
 
   const denseActiveNum = `${fmt(r.embedCount)} + ${fmt(r.preFirstCount)} + ${fmt(r.denseTotal)} = ${fmt(r.denseActive)}`;
-  html += renderRow('AH', 'Dense layer(s) active param count', fmt(r.denseActive), denseActiveNum, 'embeddings/output + pre/post norms + dense layers', STABLE_LABEL_REFS.explanation_dense_active);
+  html += renderRow('EL', 'Dense layer(s) active param count', fmt(r.denseActive), denseActiveNum, 'E + F + EC', STABLE_LABEL_REFS.explanation_dense_active);
 
   const totalParamsNum = `${fmt(r.denseActive)} + ${fmt(r.moeTotal)} = ${fmt(r.totalParams)}`;
-  html += renderRow('AI', 'Exact total param count', fmt(r.totalParams), totalParamsNum, 'dense active/base params + total MoE params', STABLE_LABEL_REFS.explanation_total_params);
+  html += renderRow('EM', 'Exact total param count', fmt(r.totalParams), totalParamsNum, 'EL + EH', STABLE_LABEL_REFS.explanation_total_params);
 
   const totalActiveNum = `${fmt(r.denseActive)} + ${fmt(r.moeActive)} = ${fmt(r.totalActive)}`;
-  html += renderRow('AJ', 'Total active param count', fmt(r.totalActive), totalActiveNum, 'dense active/base params + active MoE params', STABLE_LABEL_REFS.explanation_total_active);
+  html += renderRow('EN', 'Total active param count', fmt(r.totalActive), totalActiveNum, 'EL + EI', STABLE_LABEL_REFS.explanation_total_active);
 
   const totalAlwaysActiveNum = `${fmt(r.denseActive)} + ${fmt(r.moeAlwaysTotal)} = ${fmt(r.totalAlwaysActive)}`;
-  html += renderRow('AK', 'Total always-active param count', fmt(r.totalAlwaysActive), totalAlwaysActiveNum, 'dense active/base params + always-active MoE params', STABLE_LABEL_REFS.explanation_total_always_active);
+  html += renderRow('EO', 'Total always-active param count', fmt(r.totalAlwaysActive), totalAlwaysActiveNum, 'EL + EJ', STABLE_LABEL_REFS.explanation_total_always_active);
 
   const alwaysShareNum = r.totalActive > 0
     ? `${fmt(r.totalAlwaysActive)} ÷ ${fmt(r.totalActive)} × 100 = ${r.alwaysActivePct.toFixed(4)}%`
     : `total active = 0, so ${r.alwaysActivePct.toFixed(4)}%`;
-  html += renderRow('AL', 'Always-active share of active (%)', `${r.alwaysActivePct.toFixed(4)}`, alwaysShareNum, 'always-active ÷ active × 100', STABLE_LABEL_REFS.explanation_always_share);
+  html += renderRow('EP', 'Always-active share of active (%)', `${r.alwaysActivePct.toFixed(4)}`, alwaysShareNum, 'EO ÷ EN × 100', STABLE_LABEL_REFS.explanation_always_share);
+
+  const moeShareNum = r.totalActive > 0
+    ? `${fmt(r.moeExpertsOnly)} ÷ ${fmt(r.totalActive)} × 100 = ${r.moeExpertsPct.toFixed(4)}%`
+    : `total active = 0, so ${r.moeExpertsPct.toFixed(4)}%`;
+  html += renderRow('EQ', 'MoE share of active (%)', `${r.moeExpertsPct.toFixed(4)}`, moeShareNum, 'ET ÷ EN × 100', STABLE_LABEL_REFS.explanation_moe_share_active);
 
   const totalMlpNum = `${fmt(r.denseAttentionLayers)} × ${fmt(r.denseAttentionOnly.ffn)} + ${fmt(r.denseSsmAttentionLayers)} × ${fmt(r.denseSsmAttention.ffn)} + ${fmt(r.moeAttentionOnly.mlpTotal)} + ${fmt(r.moeSsmAttention.mlpTotal)} = ${fmt(r.totalMlp)}`;
-  html += renderRow('AM', 'Total MLP param count', fmt(r.totalMlp), totalMlpNum, 'dense FFN totals + MoE FFN/shared expert totals', STABLE_LABEL_REFS.explanation_total_mlp);
+  html += renderRow('ER', 'Total MLP param count', fmt(r.totalMlp), totalMlpNum, `A × I + B × L + C × (S + ${shared} + EF) + D × (W + ${shared} + EG)`, STABLE_LABEL_REFS.explanation_total_mlp);
 
   const totalAttnNum = `${fmt(r.denseAttentionLayers)} × ${fmt(r.denseAttentionOnly.attn)} + ${fmt(r.denseSsmAttentionLayers)} × ${fmt(r.denseSsmAttention.attn)} + ${fmt(r.moeAttentionLayers)} × ${fmt(r.moeAttentionOnly.attn)} + ${fmt(r.moeSsmAttentionLayers)} × ${fmt(r.moeSsmAttention.attn)} = ${fmt(r.totalAttn)}`;
-  html += renderRow('AN', 'Total attention/SSM param count', fmt(r.totalAttn), totalAttnNum, 'attention/SSM totals across all four layer buckets', STABLE_LABEL_REFS.explanation_total_attn);
+  html += renderRow('ES', 'Total attention/SSM param count', fmt(r.totalAttn), totalAttnNum, 'A × H + B × K + C × Q + D × U', STABLE_LABEL_REFS.explanation_total_attn);
 
   const moeExpertsActiveNum = r.expertsIncludeDim
     ? (r.expertsPer > 0
         ? `(${fmt(r.moeAttentionLayers)} × ${fmt(r.moeAttentionOnly.expertsInput)} + ${fmt(r.moeSsmAttentionLayers)} × ${fmt(r.moeSsmAttention.expertsInput)}) × (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)}) = ${fmt(r.moeExpertsOnly)}`
         : `0 = ${fmt(r.moeExpertsOnly)}`)
     : `${fmt(r.moeAttentionLayers)} × ${fmt(r.moeAttentionOnly.expertsInput)} × ${fmt(r.activeExpertsClamped)} + ${fmt(r.moeSsmAttentionLayers)} × ${fmt(r.moeSsmAttention.expertsInput)} × ${fmt(r.activeExpertsClamped)} = ${fmt(r.moeExpertsOnly)}`;
-  html += renderRow('AO', 'MoE experts active param count', fmt(r.moeExpertsOnly), moeExpertsActiveNum, 'active expert params summed across both MoE layer buckets', STABLE_LABEL_REFS.explanation_moe_experts_active);
+  html += renderRow('ET', 'MoE experts active param count', fmt(r.moeExpertsOnly), moeExpertsActiveNum, '(C × EF + D × EG) × (N ÷ M)', STABLE_LABEL_REFS.explanation_moe_experts_active);
 
   const moeExpertsTotalNum = `${fmt(r.moeAttentionOnly.expertTotal)} + ${fmt(r.moeSsmAttention.expertTotal)} = ${fmt(r.moeExpertTotal)}`;
-  html += renderRow('AP', 'MoE experts total param count', fmt(r.moeExpertTotal), moeExpertsTotalNum, 'expert totals summed across both MoE layer buckets', STABLE_LABEL_REFS.explanation_moe_experts_total);
+  html += renderRow('EU', 'MoE experts total param count', fmt(r.moeExpertTotal), moeExpertsTotalNum, 'C × EF + D × EG', STABLE_LABEL_REFS.explanation_moe_experts_total);
 
   return html;
 }
@@ -761,6 +789,7 @@ async function prefillParamModel(model) {
     if (el) el.checked = v;
   };
 
+  applyStableRefPresetData(createEmptyInput(), setVal, setChecked);
   clearSplitOnlyFields();
   const applied = await applyPresetModel(model, setVal, setChecked);
   if (!applied) return;

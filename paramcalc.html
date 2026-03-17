@@ -142,12 +142,6 @@
           <input type="number" id="active_experts" min="0" step="1" />
         </div>
       </div>
-      </div>
-    </section>
-
-    <details id="moe-attention-section" class="collapsible-sections">
-      <summary>MoE attention-only layers</summary>
-    <fieldset class="fieldset">
       <div class="form-row">
         <div class="form-group" style="flex: 1 1 200px">
           <label data-stable-ref="Z43"><input type="checkbox" id="has_shared_expert" /> Include shared expert <span class="stable-ref">Z43</span></label>
@@ -167,7 +161,12 @@
           <div class="info-text">Shared expert parameters are counted under FFN totals.</div>
         </div>
       </div>
+      </div>
+    </section>
 
+    <details id="moe-attention-section" class="collapsible-sections">
+      <summary>MoE attention-only layers</summary>
+    <fieldset class="fieldset">
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
           <label for="moe_attn" data-stable-ref="Z17"><strong>Q</strong>: Attention/SSM tensors (per MoE layer, one per line) <span class="stable-ref">Z17</span></label>

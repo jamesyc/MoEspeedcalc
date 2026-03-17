@@ -71,7 +71,7 @@ test('zero experts per layer does not render divide-by-zero explanations', () =>
   const explanation = renderExplanation(r);
   assert.doesNotMatch(explanation, /÷ 0/);
   assert.match(explanation, /2 × \(0 \+ 8,192 × 0\) \+ 0 × \(0 \+ 0 × 0\) = 0/);
-  assert.match(explanation, /AO: MoE experts active param count/);
+  assert.match(explanation, /ET: MoE experts active param count/);
   assert.match(explanation, /total active = 0, so 0.0000%/);
 });
 
@@ -89,6 +89,32 @@ test('summary labels match AO and AP quantities', () => {
   assert.match(summary, /Total MoE experts param count/);
   assert.doesNotMatch(summary, />MoE active param count</);
   assert.doesNotMatch(summary, />Total MoE param count</);
+});
+
+test('kimi-k2 zero-count MoE SSM bucket does not show shared-expert carryover', () => {
+  const explanation = renderExplanation(computeResults(buildPresetInput('kimi-k2')));
+  assert.match(explanation, /EE: MoE SSM\+attention always-active per-layer params[\s\S]*?0 \+ 0 \+ 0 \+ 0 = 0/);
+});
+
+test('per-expert presets explicitly disable tensors-include-E checkbox', () => {
+  assert.equal(PRESET_JSON.models['kimi-k2'].Z44, false);
+  assert.equal(PRESET_JSON.models['deepseek-v3'].Z44, false);
+  assert.equal(PRESET_JSON.models['deepseek-v3-mtp'].Z44, false);
+});
+
+test('summary and explanation include restored MoE aggregate rows', () => {
+  const r = computeResults(buildPresetInput('kimi-k2'));
+  const summary = renderSummary(r);
+  const explanation = renderExplanation(r);
+
+  assert.match(summary, /MoE layers total always-active param count/);
+  assert.match(summary, /MoE inactive per token param count/);
+
+  assert.match(explanation, /EJ: MoE layers total always-active params/);
+  assert.match(explanation, /EK: MoE inactive per token param count/);
+  assert.match(explanation, /EQ: MoE share of active \(%\)/);
+  assert.match(explanation, /ET: MoE experts active param count/);
+  assert.match(explanation, /EU: MoE experts total param count/);
 });
 
 test('form labels expose stable Z refs in order', () => {
