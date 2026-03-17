@@ -24,15 +24,16 @@
     </p>
 
     <!-- GPU selection dropdowns -->
-    <fieldset class="fieldset">
-      <legend>GPU Parameters</legend>
+    <section class="static-section">
+      <div class="static-section-header">GPU Parameters</div>
+      <div class="static-section-body">
       <div class="form-row">
         <div class="form-group">
           <label for="gpu1-select">GPU&nbsp;1 preset</label>
           <select id="gpu1-select">
             <!-- Options will be populated by JavaScript -->
           </select>
-          <label class="single-gpu-label"><input type="checkbox" id="single-gpu" /> Single GPU</label>
+          <label class="single-gpu-label"><input type="checkbox" id="single-gpu" /> No second GPU</label>
         </div>
         <div class="form-group">
           <label for="gpu2-select">GPU&nbsp;2 preset</label>
@@ -68,11 +69,13 @@
           <input type="number" id="system_bw" min="0" step="0.1" />
         </div>
       </div>
-    </fieldset>
+      </div>
+    </section>
 
     <!-- Model selection and inputs -->
-    <fieldset class="fieldset">
-      <legend>Model Parameters</legend>
+    <section class="static-section">
+      <div class="static-section-header">Model Parameters</div>
+      <div class="static-section-body">
       <!-- Model preset selection -->
       <div class="form-group">
         <label for="model-select">Choose Model:</label>
@@ -101,27 +104,62 @@
           <input type="number" id="moe_params" min="0" step="1" />
         </div>
         <div class="form-group">
-          <label for="kv_cache">KV cache size (GB)</label>
+          <label for="kv_cache">KV cache size at FP16/BF16 baseline (GB)</label>
           <input type="number" id="kv_cache" min="0" step="0.1" />
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="quantization">Quantization level</label>
-          <select id="quantization">
-            <option value="1.58496">1.58-bit (bitnet)</option>
-            <option value="2.5">2.5-bit (Q2)</option>
-            <option value="3.5">3.5-bit (Q3)</option>
-            <option value="4.5">4.5-bit (Q4)</option>
-            <option value="5.5">5.5-bit (Q5)</option>
-            <option value="6.5">6.5-bit (Q6)</option>
-            <option value="8.5" selected>8.5-bit (Q8)</option>
-            <option value="16">16-bit (FP16)</option>
-            <option value="32">32-bit (FP32)</option>
-          </select>
+      <div class="form-group quantization-group">
+        <span class="group-label">Quantization levels</span>
+        <div class="form-row quantization-row">
+          <div class="form-group">
+            <label for="dense_quantization">Dense parameters</label>
+            <select id="dense_quantization">
+              <option value="1.58496">1.58-bit (bitnet)</option>
+              <option value="2.5">2.5-bit (Q2)</option>
+              <option value="3.5">3.5-bit (Q3)</option>
+              <option value="4.5">4.5-bit (Q4)</option>
+              <option value="5.5">5.5-bit (Q5)</option>
+              <option value="6.5">6.5-bit (Q6)</option>
+              <option value="8.5" selected>8.5-bit (Q8)</option>
+              <option value="16">16-bit (FP16)</option>
+              <option value="32">32-bit (FP32)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="moe_quantization">MoE parameters</label>
+            <select id="moe_quantization">
+              <option value="1.58496">1.58-bit (bitnet)</option>
+              <option value="2.5">2.5-bit (Q2)</option>
+              <option value="3.5">3.5-bit (Q3)</option>
+              <option value="4.5">4.5-bit (Q4)</option>
+              <option value="5.5">5.5-bit (Q5)</option>
+              <option value="6.5">6.5-bit (Q6)</option>
+              <option value="8.5" selected>8.5-bit (Q8)</option>
+              <option value="16">16-bit (FP16)</option>
+              <option value="32">32-bit (FP32)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="kv_quantization">KV cache</label>
+            <select id="kv_quantization">
+              <option value="1.58496">1.58-bit (bitnet)</option>
+              <option value="2.5">2.5-bit (Q2)</option>
+              <option value="3.5">3.5-bit (Q3)</option>
+              <option value="4.5">4.5-bit (Q4)</option>
+              <option value="5.5">5.5-bit (Q5)</option>
+              <option value="6.5">6.5-bit (Q6)</option>
+              <option value="8.5">8.5-bit (Q8)</option>
+              <option value="16" selected>16-bit (FP16/BF16)</option>
+              <option value="32">32-bit (FP32)</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-hint">
+          Weight sizes scale directly with their selected bit-width. KV cache size is treated as a 16-bit baseline and scaled by KV bits ÷ 16.
         </div>
       </div>
-    </fieldset>
+      </div>
+    </section>
 
     <!-- Calculation trigger -->
     <div class="form-group">
