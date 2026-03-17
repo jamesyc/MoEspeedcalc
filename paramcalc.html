@@ -62,7 +62,7 @@
 
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="pre_first_norms"><strong>E</strong>: Pre/post first/last layer norms/others (optional, one per line)</label>
+          <label for="pre_first_norms"><strong>E</strong>: Pre/post first/last layer norms/others (usually F32) (optional, one per line)</label>
           <textarea id="pre_first_norms" rows="2" placeholder="[D]\n[D]"></textarea>
         </div>
       </div>
@@ -72,20 +72,20 @@
       <legend>Dense Layers</legend>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="dense_norms"><strong>F</strong>: Norms etc (optional, per dense layer, one per line)</label>
+          <label for="dense_norms"><strong>F</strong>: Norms, small SSM tensors, etc (usually F32) (optional, per dense layer, one per line)</label>
           <textarea id="dense_norms" rows="3" placeholder="[D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="dense_attn"><strong>G</strong>: Attention tensors (per dense layer, one per line)</label>
+          <label for="dense_attn"><strong>G</strong>: Attention/SSM tensors (per dense layer, one per line)</label>
           <textarea id="dense_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
           <label for="dense_ffn"><strong>H</strong>: FFN tensors (per dense layer, one per line)</label>
-          <textarea id="dense_ffn" rows="4" placeholder="[D, 4D]\n[4D, D]\n[D]"></textarea>
+          <textarea id="dense_ffn" rows="4" placeholder="[4096, 16384]\n[16384, 4096]\n[16384]"></textarea>
         </div>
       </div>
     </fieldset>
@@ -126,20 +126,20 @@
       
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_attn"><strong>N</strong>: Attention tensors (per MoE layer, one per line)</label>
+          <label for="moe_attn"><strong>N</strong>: Attention/SSM tensors (per MoE layer, one per line)</label>
           <textarea id="moe_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_transitional"><strong>O</strong>: Norms / transitional (optional, per MoE layer, one per line)</label>
+          <label for="moe_transitional"><strong>O</strong>: Norms, small SSM tensors, etc (usually F32) (optional, per MoE layer, one per line)</label>
           <textarea id="moe_transitional" rows="3" placeholder="[D]\n[D]\n[D, D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
           <label for="moe_shared_ffn"><strong>P</strong>: Gate input, biases, other FFN (always active)</label>
-          <textarea id="moe_shared_ffn" rows="3" placeholder="[D, H]\n[H, D]\n[D]"></textarea>
+          <textarea id="moe_shared_ffn" rows="3" placeholder="[4096, 256]\n[256, 4096]\n[256]"></textarea>
           <div class="info-text">Included in FFN parameter totals.</div>
         </div>
       </div>

@@ -9,15 +9,21 @@ function normalizeNumStr(s) {
     .replace(/[,']/g, '');
 }
 
+function parseDimToken(raw) {
+  const t = normalizeNumStr(raw);
+  if (!t) return { value: 0, valid: false };
+  const v = Number(t);
+  const valid = Number.isFinite(v) && Number.isInteger(v) && v >= 0;
+  return { value: valid ? v : 0, valid };
+}
+
 function parseShapeGroup(group) {
   const content = group.replace(/^[^\[]*\[/, '').replace(/\].*$/, '');
-  const dims = content.split(/\s*,\s*/).filter(Boolean).map(d => {
-    const t = normalizeNumStr(d);
-    const v = t ? parseInt(t, 10) : NaN;
-    return Number.isFinite(v) ? v : 0;
-  });
-  if (dims.length === 0) return 0;
-  return dims.reduce((a, b) => a * b, 1);
+  const tokens = content.split(/\s*,\s*/).filter(Boolean);
+  if (tokens.length === 0) return 0;
+  const dims = tokens.map(parseDimToken);
+  if (dims.some(d => !d.valid)) return 0;
+  return dims.reduce((a, b) => a * b.value, 1);
 }
 
 function sumShapes(text) {
@@ -35,6 +41,25 @@ function sumShapes(text) {
     }
   }
   return total;
+}
+
+function collectInvalidShapeEntries(text) {
+  if (!text) return [];
+  const invalidEntries = [];
+  const lines = String(text).split(/\r?\n/);
+  for (let i = 0; i < lines.length; i += 1) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
+    if (!line) continue;
+    const groups = line.match(/\[[^\]]*\]/g) || ['[' + line + ']'];
+    for (const group of groups) {
+      const content = group.replace(/^[^\[]*\[/, '').replace(/\].*$/, '');
+      const tokens = content.split(/\s*,\s*/).filter(Boolean);
+      const valid = tokens.length > 0 && tokens.every(token => parseDimToken(token).valid);
+      if (!valid) invalidEntries.push({ line: i + 1, value: group });
+    }
+  }
+  return invalidEntries;
 }
 
 // Core computation (pure)
@@ -95,6 +120,18 @@ function computeResults(input) {
   const alwaysActivePct = totalActive > 0 ? (100 * totalAlwaysActive / totalActive) : 0;
   const moeExpertsOnly = Math.max(0, moeActive - moeAlwaysTotal);
   const moeExpertsPct = totalActive > 0 ? (100 * moeExpertsOnly / totalActive) : 0;
+  const invalidShapeWarnings = [
+    ['D', collectInvalidShapeEntries(input.embedding_shapes)],
+    ['E', collectInvalidShapeEntries(input.pre_first_norms)],
+    ['F', collectInvalidShapeEntries(input.dense_norms)],
+    ['G', collectInvalidShapeEntries(input.dense_attn)],
+    ['H', collectInvalidShapeEntries(input.dense_ffn)],
+    ['M', collectInvalidShapeEntries(input.shared_expert_tensors)],
+    ['N', collectInvalidShapeEntries(input.moe_attn)],
+    ['O', collectInvalidShapeEntries(input.moe_transitional)],
+    ['P', collectInvalidShapeEntries(input.moe_shared_ffn)],
+    ['Q', collectInvalidShapeEntries(input.moe_experts)],
+  ].filter(([, entries]) => entries.length > 0);
 
   return {
     // inputs
@@ -108,6 +145,7 @@ function computeResults(input) {
     denseActive, activeExpertsClamped, expertsActivePerLayer, moeActive, totalActive,
     denseActivePct, moeActivePct, moeInactivePerToken, totalMlp, totalAttn,
     moeAlwaysTotal, totalAlwaysActive, alwaysActivePct, moeExpertsOnly, moeExpertsPct,
+    invalidShapeWarnings,
     // derived display
     totalLayersComputed: denseLayers + moeLayers,
   };
@@ -132,18 +170,24 @@ function renderRow(code, title, valueStr, numericEq, lettersEq) {
 function renderSummary(r) {
   let html = '';
   html += '<h2>Results</h2>';
+  if (r.invalidShapeWarnings.length > 0) {
+    const warningText = r.invalidShapeWarnings
+      .map(([code, entries]) => `${code}: line${entries.length === 1 ? '' : 's'} ${entries.map(e => e.line).join(', ')}`)
+      .join('; ');
+    html += `<div class="info-text">Invalid shape entries were ignored in ${warningText}.</div>`;
+  }
   html += '<table class="results-table">';
   html += '<tbody>';
   html += `<tr><td>Exact total param count</td><td>${fmt(r.totalParams)}</td></tr>`; // AJ
   html += `<tr><td>Exact active param count</td><td>${fmt(r.totalActive)}</td></tr>`; // AK
   html += `<tr><td>Total always-active param count</td><td>${fmt(r.totalAlwaysActive)}</td></tr>`; // AL
   html += `<tr><td>Always-active share of active (%)</td><td>${r.alwaysActivePct.toFixed(4)}%</td></tr>`; // AM
-  html += `<tr><td>MoE active param count</td><td>${fmt(r.moeLayers * r.expertsActivePerLayer)}</td></tr>`; // C × Q × (min(J, I) ÷ I) or C × Q × min(J, I)
+  html += `<tr><td>MoE experts active param count</td><td>${fmt(r.moeLayers * r.expertsActivePerLayer)}</td></tr>`; // C × Q × (min(J, I) ÷ I) or C × Q × min(J, I)
   html += `<tr><td>MoE share of active (%)</td><td>${r.moeExpertsPct.toFixed(4)}%</td></tr>`; // AN
-  html += `<tr><td>Total MoE param count</td><td>${fmt(r.moeExpertTotal)}</td></tr>`; // C × Q × I (experts total across MoE layers)
+  html += `<tr><td>Total MoE experts param count</td><td>${fmt(r.moeExpertTotal)}</td></tr>`; // C × Q × I (experts total across MoE layers)
   html += `<tr><td>Total MLP param count</td><td>${fmt(r.totalMlp)}</td></tr>`; // AO
   html += `<tr><td>MoE inactive per token count</td><td>${fmt(r.moeInactivePerToken)}</td></tr>`; // AH
-  html += `<tr><td>Total attention param count</td><td>${fmt(r.totalAttn)}</td></tr>`; // AP
+  html += `<tr><td>Total attention/SSM param count</td><td>${fmt(r.totalAttn)}</td></tr>`; // AP
   html += '</tbody>';
   html += '</table>';
   return html;
@@ -179,10 +223,12 @@ function renderExplanation(r) {
   html += renderRow('AG', 'MoE layers total always-active params', fmt(r.moeAlwaysTotal), moeAlwaysTotalNum, 'C × AC = AG');
 
   const moeInactiveNum = r.expertsIncludeDim
-    ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (1 − (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)})) = ${fmt(r.moeInactivePerToken)}`
+    ? (r.expertsPer > 0
+        ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (1 − (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)})) = ${fmt(r.moeInactivePerToken)}`
+        : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} = ${fmt(r.moeInactivePerToken)}`)
     : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (${fmt(r.expertsPer)} − ${fmt(r.activeExpertsClamped)}) = ${fmt(r.moeInactivePerToken)}`;
   const moeInactiveLetters = r.expertsIncludeDim
-    ? `C × Q × (1 − (min(J, I) ÷ I)) = AH`
+    ? (r.expertsPer > 0 ? `C × Q × (1 − (min(J, I) ÷ I)) = AH` : `C × Q = AH`)
     : `C × Q × (I − min(J, I)) = AH`;
   html += renderRow('AH', 'MoE inactive per token param count', fmt(r.moeInactivePerToken), moeInactiveNum, moeInactiveLetters);
 
@@ -198,10 +244,14 @@ function renderExplanation(r) {
   const totalAlwaysActiveNum = `${fmt(r.denseActive)} + ${fmt(r.moeAlwaysTotal)} = ${fmt(r.totalAlwaysActive)}`;
   html += renderRow('AL', 'Total always-active param count', fmt(r.totalAlwaysActive), totalAlwaysActiveNum, 'AI + AG = AL');
 
-  const alwaysShareNum = `${fmt(r.totalAlwaysActive)} ÷ ${fmt(r.totalActive)} × 100 = ${r.alwaysActivePct.toFixed(4)}%`;
+  const alwaysShareNum = r.totalActive > 0
+    ? `${fmt(r.totalAlwaysActive)} ÷ ${fmt(r.totalActive)} × 100 = ${r.alwaysActivePct.toFixed(4)}%`
+    : `AK = 0, so ${r.alwaysActivePct.toFixed(4)}%`;
   html += renderRow('AM', 'Always-active share of active (%)', `${r.alwaysActivePct.toFixed(4)}`, alwaysShareNum, 'AL ÷ AK × 100 = AM');
 
-  const moeExpertsShareNum = `(${fmt(r.moeActive)} − ${fmt(r.moeAlwaysTotal)}) ÷ ${fmt(r.totalActive)} × 100 = ${r.moeExpertsPct.toFixed(4)}%`;
+  const moeExpertsShareNum = r.totalActive > 0
+    ? `(${fmt(r.moeActive)} − ${fmt(r.moeAlwaysTotal)}) ÷ ${fmt(r.totalActive)} × 100 = ${r.moeExpertsPct.toFixed(4)}%`
+    : `AK = 0, so ${r.moeExpertsPct.toFixed(4)}%`;
   html += renderRow('AN', 'MoE share of active (%)', `${r.moeExpertsPct.toFixed(4)}`, moeExpertsShareNum, '(AF − AG) ÷ AK × 100 = AN');
 
   const sharedTotalLetters2 = r.hasShared ? (r.sharedScope === 'per_layer' ? ' + C × M' : ' + M') : '';
@@ -209,15 +259,17 @@ function renderExplanation(r) {
   html += renderRow('AO', 'Total MLP param count', fmt(r.totalMlp), totalMlpNum, `B × H + C × P + C × AD${sharedTotalLetters2} = AO`);
 
   const totalAttnNum = `${fmt(r.denseLayers)} × ${fmt(r.dAttn)} + ${fmt(r.moeLayers)} × ${fmt(r.mAttn)} = ${fmt(r.totalAttn)}`;
-  html += renderRow('AP', 'Total attention param count', fmt(r.totalAttn), totalAttnNum, 'B × G + C × N = AP');
+  html += renderRow('AP', 'Total attention/SSM param count', fmt(r.totalAttn), totalAttnNum, 'B × G + C × N = AP');
 
   // Additional explanations for summary-only rows
   // AQ: MoE experts active param count (experts only)
   const moeExpertsActiveNum = r.expertsIncludeDim
-    ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)}) = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`
+    ? (r.expertsPer > 0
+        ? `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × (${fmt(r.activeExpertsClamped)} ÷ ${fmt(r.expertsPer)}) = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`
+        : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × 0 = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`)
     : `${fmt(r.moeLayers)} × ${fmt(r.mExpertsInput)} × ${fmt(r.activeExpertsClamped)} = ${fmt(r.moeLayers * r.expertsActivePerLayer)}`;
   const moeExpertsActiveLetters = r.expertsIncludeDim
-    ? 'C × Q × (min(J, I) ÷ I) = AQ'
+    ? (r.expertsPer > 0 ? 'C × Q × (min(J, I) ÷ I) = AQ' : 'C × Q × 0 = AQ')
     : 'C × Q × min(J, I) = AQ';
   html += renderRow('AQ', 'MoE experts active param count', fmt(r.moeLayers * r.expertsActivePerLayer), moeExpertsActiveNum, moeExpertsActiveLetters);
 
@@ -1199,37 +1251,51 @@ function prefillParamModel(model) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('paramcalc-form');
-  const btn = document.getElementById('calculate-btn');
-  const debouncedCalc = debounce(() => calculateAndRender({ scroll: false }), 250);
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('paramcalc-form');
+    const btn = document.getElementById('calculate-btn');
+    const debouncedCalc = debounce(() => calculateAndRender({ scroll: false }), 250);
 
-  form?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    calculateAndRender({ scroll: true });
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      calculateAndRender({ scroll: true });
+    });
+    btn?.addEventListener('click', (e) => { e.preventDefault(); calculateAndRender({ scroll: true }); });
+
+    // Live updates on inputs
+    const inputs = document.querySelectorAll('#paramcalc-form input, #paramcalc-form textarea, #paramcalc-form select');
+    inputs.forEach(el => {
+      el.addEventListener('input', () => { if (el.id === 'dense_layers' || el.id === 'moe_layers') updateComputedTotalLayers(); debouncedCalc(); });
+      el.addEventListener('change', () => { if (el.id === 'dense_layers' || el.id === 'moe_layers') updateComputedTotalLayers(); debouncedCalc(); });
+    });
+
+    // Shared expert toggle state
+    const chk = document.getElementById('has_shared_expert');
+    chk?.addEventListener('change', () => { updateSharedState(); debouncedCalc(); });
+    updateSharedState();
+
+    // Initialize computed total layers and first render
+    updateComputedTotalLayers();
+
+    // Preset dropdown wiring
+    const presetSel = document.getElementById('param-model-select');
+    presetSel?.addEventListener('change', () => {
+      const v = presetSel.value;
+      if (v === 'custom') return; // keep user values
+      prefillParamModel(v);
+    });
   });
-  btn?.addEventListener('click', (e) => { e.preventDefault(); calculateAndRender({ scroll: true }); });
+}
 
-  // Live updates on inputs
-  const inputs = document.querySelectorAll('#paramcalc-form input, #paramcalc-form textarea, #paramcalc-form select');
-  inputs.forEach(el => {
-    el.addEventListener('input', () => { if (el.id === 'dense_layers' || el.id === 'moe_layers') updateComputedTotalLayers(); debouncedCalc(); });
-    el.addEventListener('change', () => { if (el.id === 'dense_layers' || el.id === 'moe_layers') updateComputedTotalLayers(); debouncedCalc(); });
-  });
-
-  // Shared expert toggle state
-  const chk = document.getElementById('has_shared_expert');
-  chk?.addEventListener('change', () => { updateSharedState(); debouncedCalc(); });
-  updateSharedState();
-
-  // Initialize computed total layers and first render
-  updateComputedTotalLayers();
-
-  // Preset dropdown wiring
-  const presetSel = document.getElementById('param-model-select');
-  presetSel?.addEventListener('change', () => {
-    const v = presetSel.value;
-    if (v === 'custom') return; // keep user values
-    prefillParamModel(v);
-  });
-});
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    parseDimToken,
+    parseShapeGroup,
+    sumShapes,
+    collectInvalidShapeEntries,
+    computeResults,
+    renderSummary,
+    renderExplanation,
+  };
+}

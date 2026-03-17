@@ -1,0 +1,7 @@
+{
+  "name": "moe-speed-calc",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
