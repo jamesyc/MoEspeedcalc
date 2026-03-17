@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "source_url": "https://jamesyc.github.io/MoEspeedcalc/paramcalc.html",
+    "source_date": "2026-03-17",
+    "notes": "Legacy baseline values captured from the published pre-split paramcalc for overlapping preset outputs."
+  },
+  "fields": [
+    "totalParams",
+    "totalActive",
+    "totalAlwaysActive",
+    "moeExpertTotal",
+    "moeExpertsOnly",
+    "totalMlp",
+    "totalAttn",
+    "totalLayersComputed"
+  ],
+  "models": {
+    "kimi-k2": {
+      "totalParams": 1026470731056,
+      "totalActive": 32863358256,
+      "totalAlwaysActive": 11722775856,
+      "moeExpertTotal": 1014747955200,
+      "moeExpertsOnly": 21140582400,
+      "totalMlp": 1017952087680,
+      "totalAttn": 6168951472,
+      "totalLayersComputed": 61
+    },
+    "deepseek-v3": {
+      "totalParams": 671067257432,
+      "totalActive": 37554471512,
+      "totalAlwaysActive": 17118575192,
+      "moeExpertTotal": 653948682240,
+      "moeExpertsOnly": 20435896320,
+      "totalMlp": 657798772352,
+      "totalAttn": 11414245336,
+      "totalLayersComputed": 61
+    },
+    "deepseek-v3-mtp": {
+      "totalParams": 684531386000,
+      "totalActive": 40095965840,
+      "totalAlwaysActive": 19307726480,
+      "moeExpertTotal": 665223659520,
+      "moeExpertsOnly": 20788239360,
+      "totalMlp": 669119627776,
+      "totalAttn": 11601364112,
+      "totalLayersComputed": 62
+    },
+    "glm-4.7": {
+      "totalParams": 352797829024,
+      "totalActive": 33632266144,
+      "totalAlwaysActive": 16834078624,
+      "moeExpertTotal": 335963750400,
+      "moeExpertsOnly": 16798187520,
+      "totalMlp": 338702677920,
+      "totalAttn": 12542287872,
+      "totalLayersComputed": 92
+    },
+    "glm-4.7-flash": {
+      "totalParams": 30587100096,
+      "totalActive": 3974241216,
+      "totalAlwaysActive": 2200050624,
+      "moeExpertTotal": 28387049472,
+      "moeExpertsOnly": 1774190592,
+      "totalMlp": 28899675072,
+      "totalAttn": 1044381696,
+      "totalLayersComputed": 48
+    },
+    "glm-5": {
+      "totalParams": 743911218432,
+      "totalActive": 41784728832,
+      "totalAlwaysActive": 19135487232,
+      "moeExpertTotal": 724775731200,
+      "moeExpertsOnly": 22649241600,
+      "totalMlp": 728404347648,
+      "totalAttn": 13602521088,
+      "totalLayersComputed": 78
+    },
+    "glm-5-mtp": {
+      "totalParams": 753864139008,
+      "totalActive": 42375962880,
+      "totalAlwaysActive": 19424731392,
+      "moeExpertTotal": 734439407616,
+      "moeExpertsOnly": 22951231488,
+      "totalMlp": 738107345920,
+      "totalAttn": 13776912384,
+      "totalLayersComputed": 79
+    },
+    "minimax-m2.5": {
+      "totalParams": 228689764864,
+      "totalActive": 11030553088,
+      "totalAlwaysActive": 4009288192,
+      "moeExpertTotal": 224680476672,
+      "moeExpertsOnly": 7021264896,
+      "totalMlp": 224729251328,
+      "totalAttn": 2730491904,
+      "totalLayersComputed": 62
+    },
+    "gpt-oss-20b": {
+      "totalParams": 20914757184,
+      "totalActive": 4187440704,
+      "totalAlwaysActive": 1797824064,
+      "moeExpertTotal": 19116933120,
+      "moeExpertsOnly": 2389616640,
+      "totalMlp": 19119145728,
+      "totalAttn": 637203456,
+      "totalLayersComputed": 24
+    },
+    "gpt-oss-120b": {
+      "totalParams": 116829156672,
+      "totalActive": 5711982912,
+      "totalAlwaysActive": 2127557952,
+      "moeExpertTotal": 114701598720,
+      "moeExpertsOnly": 3584424960,
+      "totalMlp": 114714874368,
+      "totalAttn": 955805184,
+      "totalLayersComputed": 36
+    },
+    "qwen3-30b": {
+      "totalParams": 30532122624,
+      "totalActive": 3353032704,
+      "totalAlwaysActive": 1541093376,
+      "moeExpertTotal": 28991029248,
+      "moeExpertsOnly": 1811939328,
+      "totalMlp": 29003612160,
+      "totalAttn": 905981952,
+      "totalLayersComputed": 48
+    },
+    "qwen3-235b": {
+      "totalParams": 235093634560,
+      "totalActive": 22190763520,
+      "totalAlwaysActive": 7997238784,
+      "moeExpertTotal": 227096395776,
+      "moeExpertsOnly": 14193524736,
+      "totalMlp": 227145678848,
+      "totalAttn": 6702497792,
+      "totalLayersComputed": 94
+    },
+    "qwen3.5-397b-a17b": {
+      "totalParams": 396346350336,
+      "totalActive": 17349040896,
+      "totalAlwaysActive": 9799293696,
+      "moeExpertTotal": 386547056640,
+      "moeExpertsOnly": 7549747200,
+      "totalMlp": 387428106240,
+      "totalAttn": 6883491840,
+      "totalLayersComputed": 60
+    }
+  }
+}

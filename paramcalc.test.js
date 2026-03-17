@@ -1,12 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 const {
   sumShapes,
   computeResults,
   renderSummary,
   renderExplanation,
+  buildPresetInput,
+  getPresetModels,
+  STABLE_LABEL_REFS,
 } = require('./paramcalc.js');
+
+const PRESET_JSON = JSON.parse(fs.readFileSync(require.resolve('./paramcalc.presets.json'), 'utf8'));
+const LEGACY_BASELINES = JSON.parse(fs.readFileSync(require.resolve('./paramcalc.legacy-baselines.json'), 'utf8'));
 
 function makeInput(overrides = {}) {
   return {
@@ -45,11 +52,11 @@ test('invalid symbolic shapes are ignored and surfaced as warnings', () => {
 
   assert.equal(r.dFfn, 4096 * 16384);
   assert.deepEqual(r.invalidShapeWarnings, [
-    ['H', [{ line: 1, value: '[D, 4D]' }]],
+    ['I', [{ line: 1, value: '[D, 4D]' }]],
   ]);
 
   const summary = renderSummary(r);
-  assert.match(summary, /Invalid shape entries were ignored in H: line 1\./);
+  assert.match(summary, /Invalid shape entries were ignored in I: line 1\./);
 });
 
 test('zero experts per layer does not render divide-by-zero explanations', () => {
@@ -63,12 +70,12 @@ test('zero experts per layer does not render divide-by-zero explanations', () =>
 
   const explanation = renderExplanation(r);
   assert.doesNotMatch(explanation, /÷ 0/);
-  assert.match(explanation, /C × Q = AH/);
-  assert.match(explanation, /C × Q × 0 = AQ/);
-  assert.match(explanation, /AK = 0, so 0.0000%/);
+  assert.match(explanation, /2 × \(0 \+ 8,192 × 0\) \+ 0 × \(0 \+ 0 × 0\) = 0/);
+  assert.match(explanation, /AO: MoE experts active param count/);
+  assert.match(explanation, /total active = 0, so 0.0000%/);
 });
 
-test('summary labels match AQ and AR quantities', () => {
+test('summary labels match AO and AP quantities', () => {
   const r = computeResults(makeInput({
     moe_layers: '1',
     experts_per_layer: '4',
@@ -82,4 +89,55 @@ test('summary labels match AQ and AR quantities', () => {
   assert.match(summary, /Total MoE experts param count/);
   assert.doesNotMatch(summary, />MoE active param count</);
   assert.doesNotMatch(summary, />Total MoE param count</);
+});
+
+test('form labels expose stable Z refs in order', () => {
+  const html = fs.readFileSync(require.resolve('./paramcalc.html'), 'utf8');
+  for (let n = 1; n <= 24; n += 1) {
+    const ref = `Z${String(n).padStart(2, '0')}`;
+    assert.match(html, new RegExp(`data-stable-ref="${ref}"`));
+  }
+  assert.match(html, /data-stable-ref="Z43"/);
+  assert.match(html, /data-stable-ref="Z44"/);
+});
+
+test('preset json is keyed by stable Z refs', () => {
+  const allowedRefs = new Set(Object.values(STABLE_LABEL_REFS));
+  assert.deepEqual(PRESET_JSON.modelOrder, getPresetModels());
+
+  for (const model of PRESET_JSON.modelOrder) {
+    const preset = PRESET_JSON.models[model];
+    assert.ok(preset, `${model} missing from preset json`);
+    for (const ref of Object.keys(preset)) {
+      assert.match(ref, /^Z\d{2}$/);
+      assert.ok(allowedRefs.has(ref), `${model} uses unknown stable ref ${ref}`);
+    }
+  }
+});
+
+test('preset models preserve explanation stable refs and match legacy published outputs', () => {
+  const expectedExplanationRefs = Object.entries(STABLE_LABEL_REFS)
+    .filter(([key]) => key.startsWith('explanation_'))
+    .map(([, ref]) => ref);
+
+  for (const model of getPresetModels()) {
+    const input = buildPresetInput(model);
+    const results = computeResults(input);
+    const explanation = renderExplanation(results);
+
+    for (const ref of expectedExplanationRefs) {
+      assert.match(explanation, new RegExp(`data-stable-ref="${ref}"`), `${model} missing ${ref}`);
+    }
+
+    assert.deepEqual({
+      totalParams: results.totalParams,
+      totalActive: results.totalActive,
+      totalAlwaysActive: results.totalAlwaysActive,
+      moeExpertTotal: results.moeExpertTotal,
+      moeExpertsOnly: results.moeExpertsOnly,
+      totalMlp: results.totalMlp,
+      totalAttn: results.totalAttn,
+      totalLayersComputed: results.totalLayersComputed,
+    }, LEGACY_BASELINES.models[model], `${model} no longer matches published legacy output`);
+  }
 });
