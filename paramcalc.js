@@ -535,6 +535,47 @@ function renderSummary(r) {
   return html;
 }
 
+function renderLetterResults(r) {
+  const letterRows = [
+    ['A', 'Dense attention-only layers', r.denseAttentionLayers],
+    ['B', 'Dense SSM+attention layers', r.denseSsmAttentionLayers],
+    ['C', 'MoE attention-only layers', r.moeAttentionLayers],
+    ['D', 'MoE SSM+attention layers', r.moeSsmAttentionLayers],
+    ['E', 'Embedding/output matrix sum', r.embedCount],
+    ['F', 'Pre/post first/last layer norms/others sum', r.preFirstCount],
+    ['G', 'Dense attention-only norms/small tensors sum', r.denseAttentionOnly.norms],
+    ['H', 'Dense attention-only attention/SSM tensors sum', r.denseAttentionOnly.attn],
+    ['I', 'Dense attention-only FFN tensors sum', r.denseAttentionOnly.ffn],
+    ['J', 'Dense SSM+attention norms/small tensors sum', r.denseSsmAttention.norms],
+    ['K', 'Dense SSM+attention attention/SSM tensors sum', r.denseSsmAttention.attn],
+    ['L', 'Dense SSM+attention FFN tensors sum', r.denseSsmAttention.ffn],
+    ['M', 'Experts per MoE layer', r.expertsPer],
+    ['N', 'Active experts per MoE layer used in formulas', r.activeExpertsClamped],
+    ['P', 'Shared expert tensors sum', r.sharedExpertParams],
+    ['Q', 'MoE attention-only attention/SSM tensors sum', r.moeAttentionOnly.attn],
+    ['R', 'MoE attention-only norms/small tensors sum', r.moeAttentionOnly.normsTrans],
+    ['S', 'MoE attention-only always-active FFN sum', r.moeAttentionOnly.sharedFfn],
+    ['T', 'MoE attention-only experts tensors sum', r.moeAttentionOnly.expertsInput],
+    ['U', 'MoE SSM+attention attention/SSM tensors sum', r.moeSsmAttention.attn],
+    ['V', 'MoE SSM+attention norms/small tensors sum', r.moeSsmAttention.normsTrans],
+    ['W', 'MoE SSM+attention always-active FFN sum', r.moeSsmAttention.sharedFfn],
+    ['X', 'MoE SSM+attention experts tensors sum', r.moeSsmAttention.expertsInput],
+  ];
+
+  let html = '<h2>Results (A-Z Sums)</h2>';
+  html += '<table class="results-table az-results-table"><tbody>';
+  for (const [code, title, value] of letterRows) {
+    html += `<tr><td>${code}</td><td>${title}</td><td>${fmt(value)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+
+  if (r.activeExperts !== r.activeExpertsClamped) {
+    html += `<div class="info-text">N is shown as ${fmt(r.activeExpertsClamped)} because the input active experts value was clamped to the experts-per-layer limit.</div>`;
+  }
+
+  return html;
+}
+
 function renderDenseBucketRow(code, bucket, suffix) {
   const numeric = `${fmt(bucket.norms)} + ${fmt(bucket.attn)} + ${fmt(bucket.ffn)} = ${fmt(bucket.perLayer)}`;
   const refKey = bucket.label === 'Dense attention-only'
@@ -693,12 +734,15 @@ function updateComputedTotalLayers() {
 function calculateAndRender(opts = {}) {
   const { scroll = false } = opts;
   const resultsBox = document.getElementById('results');
+  const letterResultsBox = document.getElementById('letter-results');
   const explanationBox = document.getElementById('explanation');
   const r = computeResults(getFormData());
   updateComputedTotalLayers();
   resultsBox.innerHTML = renderSummary(r);
+  letterResultsBox.innerHTML = renderLetterResults(r);
   explanationBox.innerHTML = renderExplanation(r);
   resultsBox.classList.remove('hidden');
+  letterResultsBox.classList.remove('hidden');
   explanationBox.classList.remove('hidden');
   if (scroll && typeof resultsBox.scrollIntoView === 'function') {
     resultsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -858,6 +902,7 @@ if (typeof module !== 'undefined' && module.exports) {
     collectInvalidShapeEntries,
     computeResults,
     renderSummary,
+    renderLetterResults,
     renderExplanation,
     createEmptyInput,
     buildPresetInput,

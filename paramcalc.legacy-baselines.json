@@ -55,6 +55,16 @@
       "totalAttn": 12542287872,
       "totalLayersComputed": 92
     },
+    "glm-4.7-mtp": {
+      "totalParams": 358337791296,
+      "totalActive": 35586098496,
+      "totalAlwaysActive": 18599167296,
+      "moeExpertTotal": 339738624000,
+      "moeExpertsOnly": 16986931200,
+      "totalMlp": 342501963840,
+      "totalAttn": 12678617088,
+      "totalLayersComputed": 93
+    },
     "glm-4.7-flash": {
       "totalParams": 30587100096,
       "totalActive": 3974241216,

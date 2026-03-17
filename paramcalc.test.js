@@ -6,6 +6,7 @@ const {
   sumShapes,
   computeResults,
   renderSummary,
+  renderLetterResults,
   renderExplanation,
   buildPresetInput,
   getPresetModels,
@@ -91,6 +92,45 @@ test('summary labels match AO and AP quantities', () => {
   assert.doesNotMatch(summary, />Total MoE param count</);
 });
 
+test('letter results render the A-X sums between summary and explanation', () => {
+  const r = computeResults(makeInput({
+    dense_attention_layers: '2',
+    dense_ssm_attention_layers: '1',
+    moe_attention_layers: '3',
+    moe_ssm_attention_layers: '4',
+    embedding_shapes: '[10, 20]',
+    pre_first_norms: '[5]',
+    dense_norms: '[7]',
+    dense_attn: '[11]',
+    dense_ffn: '[13]',
+    dense_ssm_norms: '[17]',
+    dense_ssm_attn: '[19]',
+    dense_ssm_ffn: '[23]',
+    experts_per_layer: '8',
+    active_experts: '10',
+    shared_expert_tensors: '[29]',
+    moe_attn: '[31]',
+    moe_transitional: '[37]',
+    moe_shared_ffn: '[41]',
+    moe_experts: '[43]',
+    moe_ssm_attn: '[47]',
+    moe_ssm_transitional: '[53]',
+    moe_ssm_shared_ffn: '[59]',
+    moe_ssm_experts: '[61]',
+    experts_include_dim: true,
+  }));
+
+  const letterResults = renderLetterResults(r);
+
+  assert.match(letterResults, /<h2>Results \(A-Z Sums\)<\/h2>/);
+  assert.match(letterResults, /<td>A<\/td><td>Dense attention-only layers<\/td><td>2<\/td>/);
+  assert.match(letterResults, /<td>E<\/td><td>Embedding\/output matrix sum<\/td><td>200<\/td>/);
+  assert.match(letterResults, /<td>N<\/td><td>Active experts per MoE layer used in formulas<\/td><td>8<\/td>/);
+  assert.match(letterResults, /<td>P<\/td><td>Shared expert tensors sum<\/td><td>0<\/td>/);
+  assert.match(letterResults, /<td>X<\/td><td>MoE SSM\+attention experts tensors sum<\/td><td>61<\/td>/);
+  assert.match(letterResults, /input active experts value was clamped/);
+});
+
 test('kimi-k2 zero-count MoE SSM bucket does not show shared-expert carryover', () => {
   const explanation = renderExplanation(computeResults(buildPresetInput('kimi-k2')));
   assert.match(explanation, /EE: MoE SSM\+attention always-active per-layer params[\s\S]*?0 \+ 0 \+ 0 \+ 0 = 0/);
@@ -100,6 +140,16 @@ test('per-expert presets explicitly disable tensors-include-E checkbox', () => {
   assert.equal(PRESET_JSON.models['kimi-k2'].Z44, false);
   assert.equal(PRESET_JSON.models['deepseek-v3'].Z44, false);
   assert.equal(PRESET_JSON.models['deepseek-v3-mtp'].Z44, false);
+});
+
+test('glm-4.7 keeps the base profile while glm-4.7-mtp includes the Hugging Face mtp block', () => {
+  const baseResults = computeResults(buildPresetInput('glm-4.7'));
+  assert.equal(baseResults.totalParams, 352797829024);
+
+  const results = computeResults(buildPresetInput('glm-4.7-mtp'));
+  assert.equal(results.totalParams, 358337791296);
+  assert.equal(results.moeAttentionLayers, 90);
+  assert.equal(results.preFirstCount, 1604341760);
 });
 
 test('summary and explanation include restored MoE aggregate rows', () => {
@@ -125,6 +175,7 @@ test('form labels expose stable Z refs in order', () => {
   }
   assert.match(html, /data-stable-ref="Z43"/);
   assert.match(html, /data-stable-ref="Z44"/);
+  assert.match(html, /id="letter-results"/);
 });
 
 test('preset json is keyed by stable Z refs', () => {

@@ -13,6 +13,15 @@
   text-align: right;
 }
 
+.az-results-table td:first-child {
+  width: 44px;
+  font-weight: 700;
+}
+
+.az-results-table td:nth-child(2) {
+  text-align: left;
+}
+
 .row-line {
   display: flex;
   align-items: baseline;
