@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "format": "stable-ref-v1",
+    "source": "generated from models/qwen3-30b.json",
+    "notes": "Candidate preset entries derived from qwen3-30b.json without editing paramcalc.presets.json. Uses raw Hugging Face tensor orientations, so some display shapes may differ from hand-authored presets even when parameter totals match."
+  },
+  "modelOrder": [
+    "qwen3-30b"
+  ],
+  "models": {
+    "qwen3-30b": {
+      "Z03": "48",
+      "Z05": "[151936, 2048]\n[151936, 2048]",
+      "Z06": "[2048]",
+      "Z13": "128",
+      "Z14": "8",
+      "Z15": "per_layer",
+      "Z17": "[4096, 2048]\n[512, 2048]\n[512, 2048]\n[2048, 4096]",
+      "Z18": "[2048]\n[2048]\n[128]\n[128]",
+      "Z19": "[128, 2048]",
+      "Z20": "[128, 768, 2048]\n[128, 768, 2048]\n[128, 2048, 768]",
+      "Z44": true
+    }
+  }
+}

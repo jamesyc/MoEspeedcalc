@@ -1,0 +1,8 @@
+{
+  "name": "moe-speed-calc",
+  "private": true,
+  "scripts": {
+    "build:paramcalc-presets": "node scripts/generate-paramcalc-presets.js",
+    "test": "node --test"
+  }
+}

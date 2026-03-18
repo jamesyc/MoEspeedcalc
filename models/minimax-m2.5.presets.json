@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "format": "stable-ref-v1",
+    "source": "generated from models/minimax-m2.5.json",
+    "notes": "Candidate preset entries derived from minimax-m2.5.json without editing paramcalc.presets.json. Uses raw Hugging Face tensor orientations, so some display shapes may differ from hand-authored presets even when parameter totals match."
+  },
+  "modelOrder": [
+    "minimax-m2.5"
+  ],
+  "models": {
+    "minimax-m2.5": {
+      "Z03": "62",
+      "Z05": "[200064, 3072]\n[200064, 3072]",
+      "Z06": "[3072]",
+      "Z13": "256",
+      "Z14": "8",
+      "Z15": "per_layer",
+      "Z17": "[6144, 3072]\n[1024, 3072]\n[1024, 3072]\n[3072, 6144]",
+      "Z18": "[3072]\n[3072]\n[6144]\n[1024]\n[48, 24]\n[8, 24]\n[8, 24]\n[24, 48]",
+      "Z19": "[256, 3072]\n[256]",
+      "Z20": "[256, 1536, 3072]\n[256, 12, 24]\n[256, 3072, 1536]\n[256, 24, 12]\n[256, 1536, 3072]\n[256, 12, 24]",
+      "Z44": true
+    }
+  }
+}

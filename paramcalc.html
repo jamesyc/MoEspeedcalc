@@ -9,14 +9,18 @@
 </head>
 <body>
   <div class="container">
+    <div class="page-toolbar">
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false">Dark mode</button>
+    </div>
     <h1>Model Parameter Calculator</h1>
     <p>
       Enter shapes in HuggingFace style like <code>[151 552, 5 120]</code>. Numbers may include spaces or narrow no‑break spaces; the calculator multiplies dimensions per tensor and sums across lines.
     </p>
 
     <form id="paramcalc-form">
-    <fieldset class="fieldset">
-      <legend>Model Structure</legend>
+    <section class="static-section">
+      <div class="static-section-header">Model Structure</div>
+      <div class="static-section-body">
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
           <label for="param-model-select">Choose Model</label>
@@ -26,89 +30,145 @@
             <option value="deepseek-v3">Deepseek V3</option>
             <option value="deepseek-v3-mtp">Deepseek V3 MTP</option>
             <option value="glm-4.7">GLM 4.7</option>
+            <option value="glm-4.7-mtp">GLM 4.7 MTP</option>
             <option value="glm-4.7-flash">GLM 4.7 Flash</option>
+            <option value="glm-4.7-flash-mtp">GLM 4.7 Flash MTP</option>
+            <option value="glm-4.5-air">GLM 4.5 Air</option>
+            <option value="glm-4.5-air-mtp">GLM 4.5 Air MTP</option>
             <option value="glm-5">GLM 5</option>
             <option value="glm-5-mtp">GLM 5 MTP</option>
             <option value="minimax-m2.5">Minimax M2.5</option>
+            <option value="mistral-small-4-119b-2603">Mistral Small 4 119B 2603</option>
             <option value="gpt-oss-20b">GPT-OSS 20B</option>
             <option value="gpt-oss-120b">GPT-OSS 120B</option>
-            <option value="qwen3-30b">Qwen 3 30B</option>
-            <option value="qwen3-235b">Qwen 3 235B</option>
+            <option value="nvidia-nemotron-3-super-120b-a12b">NVIDIA Nemotron 3 Super 120B A12B</option>
+            <option value="nvidia-nemotron-3-super-120b-a12b-mtp">NVIDIA Nemotron 3 Super 120B A12B MTP</option>
+            <option value="qwen3-30b">Qwen 3 30B A3B</option>
+            <option value="qwen3-235b">Qwen 3 235B A22B</option>
+            <option value="qwen3-next-80b-a3b-thinking">Qwen 3 Next 80B A3B Thinking</option>
+            <option value="qwen3-next-80b-a3b-thinking-mtp">Qwen 3 Next 80B A3B Thinking MTP</option>
+            <option value="qwen3.5-27b">Qwen 3.5 27B</option>
+            <option value="qwen3.5-27b-mtp">Qwen 3.5 27B MTP</option>
+            <option value="qwen3.5-35b-a3b">Qwen 3.5 35B A3B</option>
+            <option value="qwen3.5-35b-a3b-mtp">Qwen 3.5 35B A3B MTP</option>
+            <option value="qwen3.5-122b-a10b">Qwen 3.5 122B A10B</option>
+            <option value="qwen3.5-122b-a10b-mtp">Qwen 3.5 122B A10B MTP</option>
+            <option value="qwen3.5-397b-a17b">Qwen 3.5 397B A17B</option>
+            <option value="qwen3.5-397b-a17b-mtp">Qwen 3.5 397B A17B MTP</option>
+            <option value="step-3.5-flash">Step 3.5 Flash</option>
+            <option value="step-3.5-flash-mtp">Step 3.5 Flash MTP</option>
           </select>
         </div>
       </div>
       <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="total_layers">Total layers</label>
+          <output id="total_layers" class="computed-total" aria-live="polite">0</output>
+          <div class="computed-display muted">Computed automatically from the four layer counts below.</div>
+        </div>
+      </div>
+      <div class="form-row layer-count-row">
         <div class="form-group">
-          <label for="total_layers"><strong>A</strong>: Total layers</label>
-          <input type="number" id="total_layers" min="0" step="1" readonly aria-readonly="true" />
-          <div class="computed-display muted">Computed as <strong>B</strong> + <strong>C</strong></div>
+          <label for="dense_attention_layers" data-stable-ref="Z01"><strong>A</strong>: Dense attention-only <span class="stable-ref">Z01</span></label>
+          <input type="number" id="dense_attention_layers" min="0" step="1" />
         </div>
         <div class="form-group">
-          <label for="dense_layers"><strong>B</strong>: Dense layers</label>
-          <input type="number" id="dense_layers" min="0" step="1" />
+          <label for="dense_ssm_attention_layers" data-stable-ref="Z02"><strong>B</strong>: Dense SSM+attention <span class="stable-ref">Z02</span></label>
+          <input type="number" id="dense_ssm_attention_layers" min="0" step="1" />
         </div>
         <div class="form-group">
-          <label for="moe_layers"><strong>C</strong>: MoE layers</label>
-          <input type="number" id="moe_layers" min="0" step="1" />
+          <label for="moe_attention_layers" data-stable-ref="Z03"><strong>C</strong>: MoE attention-only <span class="stable-ref">Z03</span></label>
+          <input type="number" id="moe_attention_layers" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label for="moe_ssm_attention_layers" data-stable-ref="Z04"><strong>D</strong>: MoE SSM+attention <span class="stable-ref">Z04</span></label>
+          <input type="number" id="moe_ssm_attention_layers" min="0" step="1" />
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="embedding_shapes"><strong>D</strong>: Embedding/output matrix shapes (one per line)</label>
+          <label for="embedding_shapes" data-stable-ref="Z05"><strong>E</strong>: Embedding/output matrix shapes (one per line) <span class="stable-ref">Z05</span></label>
           <textarea id="embedding_shapes" rows="2" placeholder="[V, D]"></textarea>
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="pre_first_norms"><strong>E</strong>: Pre/post first/last layer norms/others (optional, one per line)</label>
+          <label for="pre_first_norms" data-stable-ref="Z06"><strong>F</strong>: Pre/post first/last layer norms/others (usually F32) (optional, one per line) <span class="stable-ref">Z06</span></label>
           <textarea id="pre_first_norms" rows="2" placeholder="[D]\n[D]"></textarea>
         </div>
       </div>
-    </fieldset>
+      </div>
+    </section>
 
+    <details id="dense-attention-section" class="collapsible-sections">
+      <summary>Dense attention-only layers</summary>
     <fieldset class="fieldset">
-      <legend>Dense Layers</legend>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="dense_norms"><strong>F</strong>: Norms etc (optional, per dense layer, one per line)</label>
+          <label for="dense_norms" data-stable-ref="Z07"><strong>G</strong>: Norms, small SSM tensors, etc (usually F32) (optional, per dense layer, one per line) <span class="stable-ref">Z07</span></label>
           <textarea id="dense_norms" rows="3" placeholder="[D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="dense_attn"><strong>G</strong>: Attention tensors (per dense layer, one per line)</label>
+          <label for="dense_attn" data-stable-ref="Z08"><strong>H</strong>: Attention/SSM tensors (per dense layer, one per line) <span class="stable-ref">Z08</span></label>
           <textarea id="dense_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="dense_ffn"><strong>H</strong>: FFN tensors (per dense layer, one per line)</label>
-          <textarea id="dense_ffn" rows="4" placeholder="[D, 4D]\n[4D, D]\n[D]"></textarea>
+          <label for="dense_ffn" data-stable-ref="Z09"><strong>I</strong>: FFN tensors (per dense layer, one per line) <span class="stable-ref">Z09</span></label>
+          <textarea id="dense_ffn" rows="4" placeholder="[4096, 16384]\n[16384, 4096]\n[16384]"></textarea>
         </div>
       </div>
     </fieldset>
+    </details>
 
+    <details id="dense-ssm-section" class="collapsible-sections">
+      <summary>Dense SSM+attention layers</summary>
     <fieldset class="fieldset">
-      <legend>MoE Layers</legend>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="dense_ssm_norms" data-stable-ref="Z10"><strong>J</strong>: Norms and small tensors (per dense SSM+attention layer, one per line) <span class="stable-ref">Z10</span></label>
+          <textarea id="dense_ssm_norms" rows="3" placeholder="[D]\n[D]"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="dense_ssm_attn" data-stable-ref="Z11"><strong>K</strong>: Attention/SSM tensors (per dense SSM+attention layer, one per line) <span class="stable-ref">Z11</span></label>
+          <textarea id="dense_ssm_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="dense_ssm_ffn" data-stable-ref="Z12"><strong>L</strong>: FFN tensors (per dense SSM+attention layer, one per line) <span class="stable-ref">Z12</span></label>
+          <textarea id="dense_ssm_ffn" rows="4" placeholder="[4096, 16384]\n[16384, 4096]\n[16384]"></textarea>
+        </div>
+      </div>
+    </fieldset>
+    </details>
+
+    <section class="static-section">
+      <div class="static-section-header">MoE Layer Settings</div>
+      <div class="static-section-body">
       <div class="form-row">
         <div class="form-group">
-          <label for="experts_per_layer"><strong>I</strong>: Experts per MoE layer</label>
+          <label for="experts_per_layer" data-stable-ref="Z13"><strong>M</strong>: Experts per MoE layer <span class="stable-ref">Z13</span></label>
           <input type="number" id="experts_per_layer" min="0" step="1" />
         </div>
         <div class="form-group">
-          <label for="active_experts"><strong>J</strong>: Active experts per MoE layer</label>
+          <label for="active_experts" data-stable-ref="Z14"><strong>N</strong>: Active experts per MoE layer <span class="stable-ref">Z14</span></label>
           <input type="number" id="active_experts" min="0" step="1" />
         </div>
       </div>
-
       <div class="form-row">
         <div class="form-group" style="flex: 1 1 200px">
-          <label><input type="checkbox" id="has_shared_expert" /> Include shared expert</label>
+          <label data-stable-ref="Z43"><input type="checkbox" id="has_shared_expert" /> Include shared expert <span class="stable-ref">Z43</span></label>
         </div>
         <div class="form-group" style="flex: 1 1 200px">
-          <label for="shared_expert_scope"><strong>L</strong>: Shared expert scope</label>
+          <label for="shared_expert_scope" data-stable-ref="Z15"><strong>O</strong>: Shared expert scope <span class="stable-ref">Z15</span></label>
           <select id="shared_expert_scope" disabled>
             <option value="global">Global (single copy)</option>
             <option value="per_layer" selected>Per MoE layer</option>
@@ -117,50 +177,89 @@
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="shared_expert_tensors"><strong>M</strong>: Shared expert tensors</label>
+          <label for="shared_expert_tensors" data-stable-ref="Z16"><strong>P</strong>: Shared expert tensors <span class="stable-ref">Z16</span></label>
           <textarea id="shared_expert_tensors" rows="3" placeholder="[H, D]\n[D, H]" disabled></textarea>
           <div class="info-text">Shared expert parameters are counted under FFN totals.</div>
         </div>
       </div>
+      </div>
+    </section>
 
-      
+    <details id="moe-attention-section" class="collapsible-sections">
+      <summary>MoE attention-only layers</summary>
+    <fieldset class="fieldset">
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_attn"><strong>N</strong>: Attention tensors (per MoE layer, one per line)</label>
+          <label for="moe_attn" data-stable-ref="Z17"><strong>Q</strong>: Attention/SSM tensors (per MoE layer, one per line) <span class="stable-ref">Z17</span></label>
           <textarea id="moe_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_transitional"><strong>O</strong>: Norms / transitional (optional, per MoE layer, one per line)</label>
+          <label for="moe_transitional" data-stable-ref="Z18"><strong>R</strong>: Norms, small SSM tensors, etc (usually F32) (optional, per MoE layer, one per line) <span class="stable-ref">Z18</span></label>
           <textarea id="moe_transitional" rows="3" placeholder="[D]\n[D]\n[D, D]"></textarea>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_shared_ffn"><strong>P</strong>: Gate input, biases, other FFN (always active)</label>
-          <textarea id="moe_shared_ffn" rows="3" placeholder="[D, H]\n[H, D]\n[D]"></textarea>
+          <label for="moe_shared_ffn" data-stable-ref="Z19"><strong>S</strong>: Gate input, biases, other FFN (always active) <span class="stable-ref">Z19</span></label>
+          <textarea id="moe_shared_ffn" rows="3" placeholder="[4096, 256]\n[256, 4096]\n[256]"></textarea>
           <div class="info-text">Included in FFN parameter totals.</div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:1 1 100%">
-          <label for="moe_experts"><strong>Q</strong>: MoE experts tensors (per MoE layer; may include expert dim E)</label>
+          <label for="moe_experts" data-stable-ref="Z20"><strong>T</strong>: MoE experts tensors (per MoE layer; may include expert dim E) <span class="stable-ref">Z20</span></label>
           <textarea id="moe_experts" rows="4" placeholder="Per-layer: [E, H, D] or sum of all expert weights on one line"></textarea>
-          <label class="single-gpu-label"><input type="checkbox" id="experts_include_dim" checked aria-describedby="experts_include_dim_note" /> Tensors include expert dimension (E)</label>
+          <label class="single-gpu-label" data-stable-ref="Z44"><input type="checkbox" id="experts_include_dim" checked aria-describedby="experts_include_dim_note" /> Tensors include expert dimension (E) <span class="stable-ref">Z44</span></label>
           <div id="experts_include_dim_note" class="info-text">If unchecked, shapes are treated as per‑expert and multiplied by the number of experts.</div>
         </div>
       </div>
     </fieldset>
+    </details>
+
+    <details id="moe-ssm-section" class="collapsible-sections">
+      <summary>MoE SSM+attention layers</summary>
+    <fieldset class="fieldset">
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_ssm_attn" data-stable-ref="Z21"><strong>U</strong>: Attention/SSM tensors (per MoE SSM+attention layer, one per line) <span class="stable-ref">Z21</span></label>
+          <textarea id="moe_ssm_attn" rows="10" placeholder="[D, D]\n[D, D]\n[D]"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_ssm_transitional" data-stable-ref="Z22"><strong>V</strong>: Norms, small SSM tensors, etc (per MoE SSM+attention layer, one per line) <span class="stable-ref">Z22</span></label>
+          <textarea id="moe_ssm_transitional" rows="3" placeholder="[D]\n[D]\n[D, D]"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_ssm_shared_ffn" data-stable-ref="Z23"><strong>W</strong>: Gate input, biases, other FFN (always active) <span class="stable-ref">Z23</span></label>
+          <textarea id="moe_ssm_shared_ffn" rows="3" placeholder="[4096, 256]\n[256, 4096]\n[256]"></textarea>
+          <div class="info-text">Included in FFN parameter totals.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label for="moe_ssm_experts" data-stable-ref="Z24"><strong>X</strong>: MoE experts tensors (per MoE SSM+attention layer; may include expert dim E) <span class="stable-ref">Z24</span></label>
+          <textarea id="moe_ssm_experts" rows="4" placeholder="Per-layer: [E, H, D] or sum of all expert weights on one line"></textarea>
+        </div>
+      </div>
+    </fieldset>
+    </details>
 
     <div class="form-group">
       <button id="calculate-btn" type="submit">Calculate</button>
     </div>
     
     <div id="results" class="results hidden" aria-live="polite"></div>
+    <div id="letter-results" class="results hidden" aria-live="polite"></div>
     <div id="explanation" class="results hidden" aria-live="polite"></div>
     </form>
   </div>
+  <script src="theme.js"></script>
+  <script src="paramcalc.presets.generated.js"></script>
   <script src="paramcalc.js"></script>
   </body>
   </html>

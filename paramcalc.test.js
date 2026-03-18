@@ -1,0 +1,303 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const {
+  sumShapes,
+  computeResults,
+  renderSummary,
+  renderLetterResults,
+  renderExplanation,
+  buildPresetInput,
+  applyFieldInputData,
+  getPresetModels,
+  STABLE_LABEL_REFS,
+} = require('./paramcalc.js');
+
+const PRESET_JSON = JSON.parse(fs.readFileSync(require.resolve('./paramcalc.presets.json'), 'utf8'));
+
+function makeInput(overrides = {}) {
+  return {
+    total_layers: '0',
+    dense_layers: '0',
+    moe_layers: '0',
+    embedding_shapes: '',
+    pre_first_norms: '',
+    dense_norms: '',
+    dense_attn: '',
+    dense_ffn: '',
+    experts_per_layer: '0',
+    active_experts: '0',
+    has_shared_expert: false,
+    shared_expert_scope: 'per_layer',
+    shared_expert_tensors: '',
+    moe_attn: '',
+    moe_transitional: '',
+    moe_shared_ffn: '',
+    moe_experts: '',
+    experts_include_dim: false,
+    ...overrides,
+  };
+}
+
+test('sumShapes supports scientific notation without truncation', () => {
+  assert.equal(sumShapes('[2e3, 4]'), 8000);
+  assert.equal(sumShapes('[4.096e3, 2]'), 8192);
+});
+
+test('invalid symbolic shapes are ignored and surfaced as warnings', () => {
+  const r = computeResults(makeInput({
+    dense_layers: '1',
+    dense_ffn: '[D, 4D]\n[4096, 16384]',
+  }));
+
+  assert.equal(r.dFfn, 4096 * 16384);
+  assert.deepEqual(r.invalidShapeWarnings, [
+    ['I', [{ line: 1, value: '[D, 4D]' }]],
+  ]);
+
+  const summary = renderSummary(r);
+  assert.match(summary, /Invalid shape entries were ignored in I: line 1\./);
+});
+
+test('zero experts per layer does not render divide-by-zero explanations', () => {
+  const r = computeResults(makeInput({
+    moe_layers: '2',
+    experts_per_layer: '0',
+    active_experts: '4',
+    moe_experts: '[128, 64]',
+    experts_include_dim: true,
+  }));
+
+  const explanation = renderExplanation(r);
+  assert.doesNotMatch(explanation, /÷ 0/);
+  assert.match(explanation, /2 × \(0 \+ 8,192 × 0\) \+ 0 × \(0 \+ 0 × 0\) = 0/);
+  assert.match(explanation, /ET: MoE experts active param count/);
+  assert.match(explanation, /total active = 0, so 0.0000%/);
+});
+
+test('summary labels match AO and AP quantities', () => {
+  const r = computeResults(makeInput({
+    moe_layers: '1',
+    experts_per_layer: '4',
+    active_experts: '2',
+    moe_experts: '[4, 10]',
+    experts_include_dim: true,
+  }));
+
+  const summary = renderSummary(r);
+  assert.match(summary, /MoE experts active param count/);
+  assert.match(summary, /Total MoE experts param count/);
+  assert.doesNotMatch(summary, />MoE active param count</);
+  assert.doesNotMatch(summary, />Total MoE param count</);
+});
+
+test('field resets clear stale values by field id before applying presets', () => {
+  const values = new Map();
+  const checks = new Map();
+
+  applyFieldInputData(
+    {
+      dense_attention_layers: '16',
+      moe_attention_layers: '30',
+      experts_include_dim: true,
+    },
+    (id, value) => values.set(id, value),
+    (id, value) => checks.set(id, value),
+  );
+
+  applyFieldInputData(
+    {
+      dense_attention_layers: '0',
+      moe_attention_layers: '0',
+      experts_include_dim: false,
+    },
+    (id, value) => values.set(id, value),
+    (id, value) => checks.set(id, value),
+  );
+
+  assert.equal(values.get('dense_attention_layers'), '0');
+  assert.equal(values.get('moe_attention_layers'), '0');
+  assert.equal(checks.get('experts_include_dim'), false);
+});
+
+test('letter results render the A-X sums between summary and explanation', () => {
+  const r = computeResults(makeInput({
+    dense_attention_layers: '2',
+    dense_ssm_attention_layers: '1',
+    moe_attention_layers: '3',
+    moe_ssm_attention_layers: '4',
+    embedding_shapes: '[10, 20]',
+    pre_first_norms: '[5]',
+    dense_norms: '[7]',
+    dense_attn: '[11]',
+    dense_ffn: '[13]',
+    dense_ssm_norms: '[17]',
+    dense_ssm_attn: '[19]',
+    dense_ssm_ffn: '[23]',
+    experts_per_layer: '8',
+    active_experts: '10',
+    shared_expert_tensors: '[29]',
+    moe_attn: '[31]',
+    moe_transitional: '[37]',
+    moe_shared_ffn: '[41]',
+    moe_experts: '[43]',
+    moe_ssm_attn: '[47]',
+    moe_ssm_transitional: '[53]',
+    moe_ssm_shared_ffn: '[59]',
+    moe_ssm_experts: '[61]',
+    experts_include_dim: true,
+  }));
+
+  const letterResults = renderLetterResults(r);
+
+  assert.match(letterResults, /<h2>Results \(A-Z Sums\)<\/h2>/);
+  assert.match(letterResults, /<td>A<\/td><td>Dense attention-only layers<\/td><td>2<\/td>/);
+  assert.match(letterResults, /<td>E<\/td><td>Embedding\/output matrix sum<\/td><td>200<\/td>/);
+  assert.match(letterResults, /<td>N<\/td><td>Active experts per MoE layer used in formulas<\/td><td>8<\/td>/);
+  assert.match(letterResults, /<td>P<\/td><td>Shared expert tensors sum<\/td><td>0<\/td>/);
+  assert.match(letterResults, /<td>X<\/td><td>MoE SSM\+attention experts tensors sum<\/td><td>61<\/td>/);
+  assert.match(letterResults, /input active experts value was clamped/);
+});
+
+test('kimi-k2 zero-count MoE SSM bucket does not show shared-expert carryover', () => {
+  const explanation = renderExplanation(computeResults(buildPresetInput('kimi-k2')));
+  assert.match(explanation, /EE: MoE SSM\+attention always-active per-layer params[\s\S]*?0 \+ 0 \+ 0 \+ 0 = 0/);
+});
+
+test('per-expert presets explicitly disable tensors-include-E checkbox', () => {
+  assert.equal(PRESET_JSON.models['kimi-k2'].Z44, false);
+  assert.equal(PRESET_JSON.models['deepseek-v3'].Z44, false);
+  assert.equal(PRESET_JSON.models['deepseek-v3-mtp'].Z44, false);
+});
+
+test('minimax has no separate mtp preset entry', () => {
+  assert.equal(PRESET_JSON.models['minimax-m2.5-mtp'], undefined);
+  assert.equal(PRESET_JSON.modelOrder.includes('minimax-m2.5-mtp'), false);
+});
+
+test('glm-4.7 keeps the base profile while glm-4.7-mtp includes the Hugging Face mtp block', () => {
+  const baseResults = computeResults(buildPresetInput('glm-4.7'));
+  assert.equal(baseResults.totalParams, 352797829024);
+
+  const results = computeResults(buildPresetInput('glm-4.7-mtp'));
+  assert.equal(results.totalParams, 358337791296);
+  assert.equal(results.moeAttentionLayers, 90);
+  assert.equal(results.preFirstCount, 1604341760);
+});
+
+test('qwen 3.5 presets now use the raw exported totals', () => {
+  assert.equal(computeResults(buildPresetInput('qwen3.5-27b')).totalParams, 27356728560);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-27b-mtp')).totalParams, 27781427952);
+
+  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b')).totalParams, 35107181936);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b-mtp')).totalParams, 35951822704);
+
+  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b')).totalParams, 122562817776);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b-mtp')).totalParams, 125086497008);
+
+  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b')).totalParams, 396802360816);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b-mtp')).totalParams, 403397928944);
+});
+
+test('newly added model families match raw export totals', () => {
+  assert.equal(computeResults(buildPresetInput('glm-4.5-air')).totalParams, 106852251264);
+  assert.equal(computeResults(buildPresetInput('glm-4.5-air-mtp')).totalParams, 110468824832);
+
+  assert.equal(computeResults(buildPresetInput('step-3.5-flash')).totalParams, 196956130368);
+  assert.equal(computeResults(buildPresetInput('step-3.5-flash-mtp')).totalParams, 199384301376);
+
+  assert.equal(computeResults(buildPresetInput('mistral-small-4-119b-2603')).totalParams, 119401317952);
+});
+
+test('qwen 3 next thinking preset models MTP as +1 layer plus bridge tensors', () => {
+  const base = computeResults(buildPresetInput('qwen3-next-80b-a3b-thinking'));
+  const mtp = computeResults(buildPresetInput('qwen3-next-80b-a3b-thinking-mtp'));
+
+  assert.equal(base.totalParams, 79674391296);
+  assert.equal(mtp.totalParams, 81324862720);
+  assert.equal(mtp.moeAttentionLayers, base.moeAttentionLayers + 1);
+  assert.equal(mtp.totalParams - base.totalParams, 1650471424);
+  assert.equal(mtp.preFirstCount - base.preFirstCount, 8394752);
+});
+
+test('zero-delta mtp variants without actual mtp tensors are suppressed', () => {
+  assert.equal(PRESET_JSON.models['gpt-oss-20b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['gpt-oss-120b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['qwen3-30b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['qwen3-235b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['kimi-k2-mtp'], undefined);
+});
+
+test('nemotron 3 super mtp preset matches Hugging Face safetensors totals', () => {
+  assert.equal(
+    computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b-mtp')).totalParams,
+    123611033088,
+  );
+});
+
+test('nemotron 3 super base preset excludes the modeled mtp block', () => {
+  const base = computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b'));
+  const mtp = computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b-mtp'));
+
+  assert.equal(base.totalParams, 120668707840);
+  assert.equal(mtp.totalParams - base.totalParams, 2942325248);
+  assert.equal(base.totalLayersComputed, 88);
+  assert.equal(mtp.totalLayersComputed, 88);
+});
+
+test('summary and explanation include restored MoE aggregate rows', () => {
+  const r = computeResults(buildPresetInput('kimi-k2'));
+  const summary = renderSummary(r);
+  const explanation = renderExplanation(r);
+
+  assert.match(summary, /MoE layers total always-active param count/);
+  assert.match(summary, /MoE inactive per token param count/);
+
+  assert.match(explanation, /EJ: MoE layers total always-active params/);
+  assert.match(explanation, /EK: MoE inactive per token param count/);
+  assert.match(explanation, /EQ: MoE share of active \(%\)/);
+  assert.match(explanation, /ET: MoE experts active param count/);
+  assert.match(explanation, /EU: MoE experts total param count/);
+});
+
+test('form labels expose stable Z refs in order', () => {
+  const html = fs.readFileSync(require.resolve('./paramcalc.html'), 'utf8');
+  for (let n = 1; n <= 24; n += 1) {
+    const ref = `Z${String(n).padStart(2, '0')}`;
+    assert.match(html, new RegExp(`data-stable-ref="${ref}"`));
+  }
+  assert.match(html, /data-stable-ref="Z43"/);
+  assert.match(html, /data-stable-ref="Z44"/);
+  assert.match(html, /id="letter-results"/);
+});
+
+test('preset json is keyed by stable Z refs', () => {
+  const allowedRefs = new Set(Object.values(STABLE_LABEL_REFS));
+  assert.deepEqual(PRESET_JSON.modelOrder, getPresetModels());
+
+  for (const model of PRESET_JSON.modelOrder) {
+    const preset = PRESET_JSON.models[model];
+    assert.ok(preset, `${model} missing from preset json`);
+    for (const ref of Object.keys(preset)) {
+      assert.match(ref, /^Z\d{2}$/);
+      assert.ok(allowedRefs.has(ref), `${model} uses unknown stable ref ${ref}`);
+    }
+  }
+});
+
+test('preset models preserve explanation stable refs', () => {
+  const expectedExplanationRefs = Object.entries(STABLE_LABEL_REFS)
+    .filter(([key]) => key.startsWith('explanation_'))
+    .map(([, ref]) => ref);
+
+  for (const model of getPresetModels()) {
+    const input = buildPresetInput(model);
+    const results = computeResults(input);
+    const explanation = renderExplanation(results);
+
+    for (const ref of expectedExplanationRefs) {
+      assert.match(explanation, new RegExp(`data-stable-ref="${ref}"`), `${model} missing ${ref}`);
+    }
+  }
+});

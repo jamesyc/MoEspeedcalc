@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "format": "stable-ref-v1",
+    "source": "generated from models/qwen3-235b.json",
+    "notes": "Candidate preset entries derived from qwen3-235b.json without editing paramcalc.presets.json. Uses raw Hugging Face tensor orientations, so some display shapes may differ from hand-authored presets even when parameter totals match."
+  },
+  "modelOrder": [
+    "qwen3-235b"
+  ],
+  "models": {
+    "qwen3-235b": {
+      "Z03": "94",
+      "Z05": "[151936, 4096]\n[151936, 4096]",
+      "Z06": "[4096]",
+      "Z13": "128",
+      "Z14": "8",
+      "Z15": "per_layer",
+      "Z17": "[8192, 4096]\n[512, 4096]\n[512, 4096]\n[4096, 8192]",
+      "Z18": "[4096]\n[4096]\n[128]\n[128]",
+      "Z19": "[128, 4096]",
+      "Z20": "[128, 1536, 4096]\n[128, 1536, 4096]\n[128, 4096, 1536]",
+      "Z44": true
+    }
+  }
+}

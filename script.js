@@ -19,6 +19,190 @@ function formatFloat(value, decimals) {
   return s.replace(/\.0+$/, '').replace(/(\.[0-9]*[1-9])0+$/, '$1');
 }
 
+function formatBitLabel(bits) {
+  return `${formatFloat(bits, 5)}-bit`;
+}
+
+const modelDisplayNames = {
+  'deepseek-v3': 'DeepSeek V3',
+  'deepseek-v3-mtp': 'DeepSeek V3 MTP',
+  'glm-4.5-air': 'GLM 4.5 Air',
+  'glm-4.5-air-mtp': 'GLM 4.5 Air MTP',
+  'glm-4.7': 'GLM 4.7',
+  'glm-4.7-mtp': 'GLM 4.7 MTP',
+  'glm-4.7-flash': 'GLM 4.7 Flash',
+  'glm-4.7-flash-mtp': 'GLM 4.7 Flash MTP',
+  'glm-5': 'GLM 5',
+  'glm-5-mtp': 'GLM 5 MTP',
+  'gpt-oss-120b': 'GPT-OSS 120B',
+  'gpt-oss-20b': 'GPT-OSS 20B',
+  'kimi-k2': 'Kimi K2',
+  'minimax-m2.5': 'MiniMax M2.5',
+  'mistral-small-4-119b-2603': 'Mistral Small 4 119B 2603',
+  'nvidia-nemotron-3-super-120b-a12b': 'NVIDIA Nemotron 3 Super 120B A12B',
+  'nvidia-nemotron-3-super-120b-a12b-mtp': 'NVIDIA Nemotron 3 Super 120B A12B MTP',
+  'qwen3-235b': 'Qwen 3 235B A22B',
+  'qwen3-30b': 'Qwen 3 30B A3B',
+  'qwen3-next-80b-a3b-thinking': 'Qwen 3 Next 80B A3B Thinking',
+  'qwen3-next-80b-a3b-thinking-mtp': 'Qwen 3 Next 80B A3B Thinking MTP',
+  'qwen3.5-122b-a10b': 'Qwen 3.5 122B A10B',
+  'qwen3.5-122b-a10b-mtp': 'Qwen 3.5 122B A10B MTP',
+  'qwen3.5-27b': 'Qwen 3.5 27B',
+  'qwen3.5-27b-mtp': 'Qwen 3.5 27B MTP',
+  'qwen3.5-35b-a3b': 'Qwen 3.5 35B A3B',
+  'qwen3.5-35b-a3b-mtp': 'Qwen 3.5 35B A3B MTP',
+  'qwen3.5-397b-a17b': 'Qwen 3.5 397B A17B',
+  'qwen3.5-397b-a17b-mtp': 'Qwen 3.5 397B A17B MTP',
+  'step-3.5-flash': 'Step 3.5 Flash',
+  'step-3.5-flash-mtp': 'Step 3.5 Flash MTP',
+};
+
+const presetModelCache = new Map();
+
+function normalizeNumStr(s) {
+  return String(s)
+    .replace(/[\u00A0\u202F\u2009\s_]/g, '')
+    .replace(/[,']/g, '');
+}
+
+function parseDimToken(raw) {
+  const token = normalizeNumStr(raw);
+  if (!token) return { value: 0, valid: false };
+  const value = Number(token);
+  return { value, valid: Number.isFinite(value) && value >= 0 };
+}
+
+function parseShapeGroup(group) {
+  const content = group.replace(/^[^\[]*\[/, '').replace(/\].*$/, '');
+  const tokens = content.split(/\s*,\s*/).filter(Boolean);
+  if (tokens.length === 0) return 0;
+  const dims = tokens.map(parseDimToken);
+  if (dims.some((dim) => !dim.valid)) return 0;
+  return dims.reduce((acc, dim) => acc * dim.value, 1);
+}
+
+function sumShapes(text) {
+  if (!text) return 0;
+  let total = 0;
+  const lines = String(text).split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const groups = line.match(/\[[^\]]*\]/g);
+    if (groups) {
+      groups.forEach((group) => {
+        total += parseShapeGroup(group);
+      });
+    } else {
+      total += parseShapeGroup(`[${line}]`);
+    }
+  }
+  return total;
+}
+
+function parseCount(value) {
+  return parseInt(value || '0', 10) || 0;
+}
+
+function getPresetField(entry, stableRef, fallback = '') {
+  const value = entry?.[stableRef];
+  return typeof value === 'boolean' ? value : (value || fallback);
+}
+
+function computeModelPreset(entry) {
+  const denseAttentionLayers = parseCount(getPresetField(entry, 'Z01'));
+  const denseSsmAttentionLayers = parseCount(getPresetField(entry, 'Z02'));
+  const moeAttentionLayers = parseCount(getPresetField(entry, 'Z03'));
+  const moeSsmAttentionLayers = parseCount(getPresetField(entry, 'Z04'));
+  const moeLayers = moeAttentionLayers + moeSsmAttentionLayers;
+  const expertsPer = parseCount(getPresetField(entry, 'Z13'));
+  const activeExperts = parseCount(getPresetField(entry, 'Z14'));
+  const activeExpertsClamped = Math.max(0, Math.min(activeExperts, expertsPer));
+  const expertsIncludeDim = !!entry?.Z44;
+  const hasSharedExpert = !!entry?.Z43;
+  const sharedScope = getPresetField(entry, 'Z15', 'per_layer');
+
+  const denseAttentionPerLayer = sumShapes(getPresetField(entry, 'Z07')) + sumShapes(getPresetField(entry, 'Z08')) + sumShapes(getPresetField(entry, 'Z09'));
+  const denseSsmPerLayer = sumShapes(getPresetField(entry, 'Z10')) + sumShapes(getPresetField(entry, 'Z11')) + sumShapes(getPresetField(entry, 'Z12'));
+  const denseTotal = denseAttentionLayers * denseAttentionPerLayer + denseSsmAttentionLayers * denseSsmPerLayer;
+  const embeddingTotal = sumShapes(getPresetField(entry, 'Z05'));
+  const preFirstNorms = sumShapes(getPresetField(entry, 'Z06'));
+
+  const sharedExpertParams = hasSharedExpert ? sumShapes(getPresetField(entry, 'Z16')) : 0;
+  const sharedPerLayer = hasSharedExpert
+    ? (sharedScope === 'per_layer' ? sharedExpertParams : (moeLayers > 0 ? (sharedExpertParams / moeLayers) : 0))
+    : 0;
+
+  const moeAttentionAlwaysPerLayer = sumShapes(getPresetField(entry, 'Z17'))
+    + sumShapes(getPresetField(entry, 'Z18'))
+    + sumShapes(getPresetField(entry, 'Z19'))
+    + (moeAttentionLayers > 0 ? sharedPerLayer : 0);
+  const moeSsmAlwaysPerLayer = sumShapes(getPresetField(entry, 'Z21'))
+    + sumShapes(getPresetField(entry, 'Z22'))
+    + sumShapes(getPresetField(entry, 'Z23'))
+    + (moeSsmAttentionLayers > 0 ? sharedPerLayer : 0);
+
+  const moeAttentionExpertsInput = sumShapes(getPresetField(entry, 'Z20'));
+  const moeSsmExpertsInput = sumShapes(getPresetField(entry, 'Z24'));
+  const moeAttentionExpertsPerLayer = expertsIncludeDim
+    ? moeAttentionExpertsInput
+    : (moeAttentionExpertsInput * expertsPer);
+  const moeSsmExpertsPerLayer = expertsIncludeDim
+    ? moeSsmExpertsInput
+    : (moeSsmExpertsInput * expertsPer);
+
+  const moeAttentionExpertsActivePerLayer = expertsIncludeDim
+    ? (expertsPer > 0 ? moeAttentionExpertsInput * (activeExpertsClamped / expertsPer) : 0)
+    : (moeAttentionExpertsInput * activeExpertsClamped);
+  const moeSsmExpertsActivePerLayer = expertsIncludeDim
+    ? (expertsPer > 0 ? moeSsmExpertsInput * (activeExpertsClamped / expertsPer) : 0)
+    : (moeSsmExpertsInput * activeExpertsClamped);
+
+  const denseParams = embeddingTotal + preFirstNorms + denseTotal + moeAttentionLayers * moeAttentionAlwaysPerLayer + moeSsmAttentionLayers * moeSsmAlwaysPerLayer;
+  const moeParams = moeAttentionLayers * moeAttentionExpertsActivePerLayer + moeSsmAttentionLayers * moeSsmExpertsActivePerLayer;
+  const totalParams = denseParams
+    + moeParams
+    + moeAttentionLayers * Math.max(0, moeAttentionExpertsPerLayer - moeAttentionExpertsActivePerLayer)
+    + moeSsmAttentionLayers * Math.max(0, moeSsmExpertsPerLayer - moeSsmExpertsActivePerLayer);
+
+  return {
+    totalParams,
+    denseParams,
+    moeParams,
+  };
+}
+
+function getModelPreset(model) {
+  if (presetModelCache.has(model)) {
+    return presetModelCache.get(model);
+  }
+
+  const presetEntry = globalThis.PARAMCALC_PRESETS?.models?.[model];
+  if (!presetEntry) {
+    return null;
+  }
+
+  const computed = computeModelPreset(presetEntry);
+  presetModelCache.set(model, computed);
+  return computed;
+}
+
+function getModelDisplayName(model) {
+  return modelDisplayNames[model] || model;
+}
+
+function populateModelSelect() {
+  const select = document.getElementById('model-select');
+  const modelOrder = globalThis.PARAMCALC_PRESETS?.modelOrder || [];
+
+  modelOrder.forEach((model) => {
+    const option = document.createElement('option');
+    option.value = model;
+    option.textContent = getModelDisplayName(model);
+    select.appendChild(option);
+  });
+}
+
 // Prefill model fields based on selection
 function prefillModel(model) {
   const totalParamsEl = document.getElementById('total_params');
@@ -26,45 +210,26 @@ function prefillModel(model) {
   const moeParamsEl = document.getElementById('moe_params');
   const kvCacheEl = document.getElementById('kv_cache');
 
-  if (model === 'kimi') {
-    // Kimi‑K2 preset parameters
-    totalParamsEl.value = 1026470731056;
-    denseParamsEl.value = 11722775856;
-    moeParamsEl.value = 21140582400;
-    // Do not override existing KV cache when switching models
-  } else if (model === 'qwen') {
-    // Qwen3‑235B preset parameters
-    totalParamsEl.value = 235044351488;
-    denseParamsEl.value = 7947951616;
-    moeParamsEl.value = 14193524736;
-    // Preserve KV cache value
-  } else if (model === 'deepseek') {
-    // Deepseek V3 preset parameters
-    totalParamsEl.value = 671026419200;
-    // Always‑active dense parameters per token
-    denseParamsEl.value = 14563317248;
-    // Active MoE parameters per token
-    moeParamsEl.value = 22988980224;
-    // Keep existing KV cache value
-  } else if (model === 'gpt-oss-120b') {
-    // gpt‑oss‑120b preset parameters
-    totalParamsEl.value = 116829156672;
-    denseParamsEl.value = 1548424512;
-    moeParamsEl.value = 3584424960;
-    // Keep existing KV cache value
-  } else if (model === 'glm-4.5-air') {
-    // GLM 4.5 Air preset parameters
-    totalParamsEl.value = 106852251264;
-    denseParamsEl.value = 6393421824;
-    moeParamsEl.value = 7030707840;
-    // Keep existing KV cache value
-  } else {
+  if (model === 'custom') {
     // Custom – clear fields including KV cache
     totalParamsEl.value = '';
     denseParamsEl.value = '';
     moeParamsEl.value = '';
     kvCacheEl.value = '';
+    return;
   }
+
+  const preset = getModelPreset(model);
+  if (!preset) {
+    totalParamsEl.value = '';
+    denseParamsEl.value = '';
+    moeParamsEl.value = '';
+    return;
+  }
+
+  totalParamsEl.value = preset.totalParams;
+  denseParamsEl.value = preset.denseParams;
+  moeParamsEl.value = preset.moeParams;
 }
 
 // GPU presets definition.  Each entry defines a friendly name along with
@@ -166,6 +331,7 @@ function updateSingleGpuState() {
   const gpu2Select = document.getElementById('gpu2-select');
   const gpu2Vram = document.getElementById('gpu2_vram');
   const gpu2Bw = document.getElementById('gpu2_bw');
+  const gpu2Fields = document.querySelectorAll('[data-gpu2-field]');
   if (checkbox.checked) {
     gpu2Select.disabled = true;
     gpu2Vram.disabled = true;
@@ -173,10 +339,12 @@ function updateSingleGpuState() {
     gpu2Select.value = 'custom';
     gpu2Vram.value = 0;
     gpu2Bw.value = document.getElementById('gpu1_bw').value;
+    gpu2Fields.forEach((field) => field.classList.add('is-disabled'));
   } else {
     gpu2Select.disabled = false;
     gpu2Vram.disabled = false;
     gpu2Bw.disabled = false;
+    gpu2Fields.forEach((field) => field.classList.remove('is-disabled'));
   }
 }
 
@@ -194,10 +362,11 @@ function calculate() {
   const denseParams = parseFloat(document.getElementById('dense_params').value);
   const activeMoeParams = parseFloat(document.getElementById('moe_params').value);
   const kvCache = parseFloat(document.getElementById('kv_cache').value) || 0;
-  const quantBits = parseInt(document.getElementById('quantization').value);
+  const denseQuantBits = parseFloat(document.getElementById('dense_quantization').value);
+  const moeQuantBits = parseFloat(document.getElementById('moe_quantization').value);
 
   // Validate required fields; if any are missing or invalid, abort
-  if ([gpu1Vram, gpu1Bw, gpu2Vram, gpu2Bw, systemBw, totalParams, denseParams, activeMoeParams].some(v => isNaN(v) || v < 0)) {
+  if ([gpu1Vram, gpu1Bw, gpu2Vram, gpu2Bw, systemBw, totalParams, denseParams, activeMoeParams, denseQuantBits, moeQuantBits].some(v => isNaN(v) || v < 0)) {
     resultsDiv.innerHTML = '<div class="info-text">Please fill in all fields with valid (non‑negative) numbers before calculating.</div>';
     resultsDiv.classList.remove('hidden');
     return;
@@ -205,25 +374,27 @@ function calculate() {
 
   // Derived values
   const totalMoeParams = Math.max(totalParams - denseParams, 0);
-  const bytesPerParam = quantBits / 8.0;
+  const denseBytesPerParam = denseQuantBits / 8;
+  const moeBytesPerParam = moeQuantBits / 8;
 
   // Dense part size in GB = dense params * bytes per param / 1e9
-  const denseSizeGB = denseParams * bytesPerParam / 1e9;
-  const denseKvGB = denseSizeGB + kvCache;
+  const denseSizeGB = denseParams * denseBytesPerParam / 1e9;
+  const kvCacheSizeGB = kvCache;
+  const denseKvGB = denseSizeGB + kvCacheSizeGB;
   const fitsOnGpu1 = denseKvGB <= gpu1Vram;
 
   // Time to load dense+kv (ms) = size (GB) / bandwidth (GB/s) * 1000
   const denseLoadMs = gpu1Bw > 0 ? (denseKvGB / gpu1Bw) * 1000 : Infinity;
 
   // Total MoE size in GB
-  const moeTotalGB = totalMoeParams * bytesPerParam / 1e9;
+  const moeTotalGB = totalMoeParams * moeBytesPerParam / 1e9;
   // Share of MoE stored on GPU2
   let moeShare = 0;
   if (moeTotalGB > 0 && gpu2Vram > 0) {
     moeShare = Math.min(1, gpu2Vram / moeTotalGB);
   }
   // Time for MoE portion on GPU2
-  const activeMoeSizeGB = activeMoeParams * bytesPerParam / 1e9;
+  const activeMoeSizeGB = activeMoeParams * moeBytesPerParam / 1e9;
   const gpu2MoeMs = gpu2Bw > 0 ? (moeShare * activeMoeSizeGB / gpu2Bw) * 1000 : Infinity;
   // Time for MoE portion from system RAM
   const systemShare = 1 - moeShare;
@@ -236,12 +407,30 @@ function calculate() {
   // Build HTML output with formulas and values
   let html = '';
   html += '<h2>Results</h2>';
+  html += '<div class="result-row">';
+  html += '<span class="result-title">Selected parameter size:</span>';
+  html += `<span class="result-value">Always-active ${formatBitLabel(denseQuantBits)}, Active MoE ${formatBitLabel(moeQuantBits)}</span>`;
+  html += `<div class="equation">Always-active uses ${formatFloat(denseQuantBits, 5)} bits/param and active MoE uses ${formatFloat(moeQuantBits, 5)} bits/param. KV cache is used directly as entered in GB.</div>`;
+  html += '</div>';
+  // Dense and KV components
+  html += '<div class="result-row">';
+  html += '<span class="result-title">Always-active parameter size:</span>';
+  html += `<span class="result-value">${formatFloat(denseSizeGB, 4)}&nbsp;GB</span>`;
+  const eqDense = `${formatNumber(denseParams)} params × (${formatFloat(denseQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB = ${formatFloat(denseSizeGB, 4)} GB`;
+  html += `<div class="equation">${eqDense}</div>`;
+  html += '</div>';
+  html += '<div class="result-row">';
+  html += '<span class="result-title">KV cache size:</span>';
+  html += `<span class="result-value">${formatFloat(kvCacheSizeGB, 4)}&nbsp;GB</span>`;
+  const eqKv = `${formatFloat(kvCache, 4)} GB`;
+  html += `<div class="equation">${eqKv}</div>`;
+  html += '</div>';
   // Dense + KV size
   html += '<div class="result-row">';
   html += '<span class="result-title">Dense parameters + KV cache size:</span>';
   html += `<span class="result-value">${formatFloat(denseKvGB, 4)}&nbsp;GB</span>`;
-  // Show units for dense size calculation.  denseParams has units of parameters, quantBits is bits/param.
-  const eq1 = `${formatNumber(denseParams)} params × (${quantBits} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB + ${kvCache} GB = ${formatFloat(denseKvGB, 4)} GB`;
+  // Show units for dense size calculation and KV scaling.
+  const eq1 = `${formatFloat(denseSizeGB, 4)} GB + ${formatFloat(kvCacheSizeGB, 4)} GB = ${formatFloat(denseKvGB, 4)} GB`;
   html += `<div class="equation">${eq1}</div>`;
   html += '</div>';
   // Fit in GPU1
@@ -264,8 +453,7 @@ function calculate() {
   html += '<div class="result-row">';
   html += '<span class="result-title">Total MoE size:</span>';
   html += `<span class="result-value">${formatFloat(moeTotalGB, 4)}&nbsp;GB</span>`;
-  // Total MoE size calculation with units: params × bits/param ÷ (8 bits/byte) ÷ 1e9 bytes/GB.
-  const eq3 = `${formatNumber(totalMoeParams)} params × (${quantBits} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB = ${formatFloat(moeTotalGB, 4)} GB`;
+  const eq3 = `${formatNumber(totalMoeParams)} params × (${formatFloat(moeQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB = ${formatFloat(moeTotalGB, 4)} GB`;
   html += `<div class="equation">${eq3}</div>`;
   html += '</div>';
   // GPU2 share
@@ -273,23 +461,23 @@ function calculate() {
   html += '<span class="result-title">Percentage of MoE on GPU&nbsp;2:</span>';
   html += `<span class="result-value">${formatFloat(moeShare * 100, 2)}&nbsp;%</span>`;
   // GPU2 share calculation shows GB units cancelling out.
-  const eq4 = `min(1, ${gpu2Vram} GB ÷ ${formatFloat(moeTotalGB, 4)} GB) = ${formatFloat(moeShare, 4)}`;
+  const eq4 = moeTotalGB > 0
+    ? `min(1, ${gpu2Vram} GB ÷ ${formatFloat(moeTotalGB, 4)} GB) = ${formatFloat(moeShare, 4)}`
+    : 'No MoE parameters remain after subtracting dense parameters, so GPU 2 stores 0% of the MoE.';
   html += `<div class="equation">${eq4}</div>`;
   html += '</div>';
   // GPU2 MoE time
   html += '<div class="result-row">';
   html += '<span class="result-title">MoE load time on GPU&nbsp;2:</span>';
   html += `<span class="result-value">${formatFloat(gpu2MoeMs, 3)}&nbsp;ms</span>`;
-  // GPU2 MoE load time: share (unitless) × activeMoeParams × bits/param ÷ (8 bits/byte) ÷ 1e9 bytes/GB ÷ (GPU2 GB/s) × 1000 ms/s.
-  const eq5 = `${formatFloat(moeShare, 4)} × (${formatNumber(activeMoeParams)} params × (${quantBits} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB) ÷ ${gpu2Bw} GB/s × 1000 ms/s = ${formatFloat(gpu2MoeMs, 3)} ms`;
+  const eq5 = `${formatFloat(moeShare, 4)} × (${formatNumber(activeMoeParams)} params × (${formatFloat(moeQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB) ÷ ${gpu2Bw} GB/s × 1000 ms/s = ${formatFloat(gpu2MoeMs, 3)} ms`;
   html += `<div class="equation">${eq5}</div>`;
   html += '</div>';
   // System RAM time
   html += '<div class="result-row">';
   html += '<span class="result-title">MoE load time from system RAM:</span>';
   html += `<span class="result-value">${formatFloat(systemMoeMs, 3)}&nbsp;ms</span>`;
-  // System RAM MoE load time: similar to GPU2 but using system bandwidth.
-  const eq6 = `${formatFloat(systemShare, 4)} × (${formatNumber(activeMoeParams)} params × (${quantBits} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB) ÷ ${systemBw} GB/s × 1000 ms/s = ${formatFloat(systemMoeMs, 3)} ms`;
+  const eq6 = `${formatFloat(systemShare, 4)} × (${formatNumber(activeMoeParams)} params × (${formatFloat(moeQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB) ÷ ${systemBw} GB/s × 1000 ms/s = ${formatFloat(systemMoeMs, 3)} ms`;
   html += `<div class="equation">${eq6}</div>`;
   html += '</div>';
   // Total ms per token
@@ -323,6 +511,8 @@ function calculate() {
 
 // Initialize event listeners once DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+  populateModelSelect();
+
   // Prefill when model selection changes
   const modelSelect = document.getElementById('model-select');
   modelSelect.addEventListener('change', () => {

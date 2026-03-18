@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "format": "stable-ref-v1",
+    "source": "generated from models/mistral-small-4-119b-2603.json",
+    "notes": "Candidate preset entries derived from mistral-small-4-119b-2603.json without editing paramcalc.presets.json. Uses raw Hugging Face tensor orientations, so some display shapes may differ from hand-authored presets even when parameter totals match."
+  },
+  "modelOrder": [
+    "mistral-small-4-119b-2603"
+  ],
+  "models": {
+    "mistral-small-4-119b-2603": {
+      "Z03": "36",
+      "Z05": "[131072, 4096]\n[131072, 4096]",
+      "Z06": "[4096]\n[428472320]",
+      "Z13": "128",
+      "Z14": "4",
+      "Z15": "per_layer",
+      "Z16": "[1]\n[2048, 4096]\n[1]\n[1]\n[2048, 4096]\n[1]\n[1]\n[4096, 2048]\n[1]",
+      "Z17": "[1]\n[1024, 4096]\n[1]\n[1]\n[4096, 1024]\n[1]\n[1]\n[320, 4096]\n[1]\n[1]\n[6144, 256]\n[1]\n[1]\n[4096, 4096]\n[1]",
+      "Z18": "[4096]\n[4096]\n[1024]\n[256]",
+      "Z19": "[128, 4096]",
+      "Z20": "[128, 4096, 4096]\n[128]\n[128, 1, 1]\n[128, 4096, 2048]\n[128]\n[128, 1, 1]",
+      "Z43": true,
+      "Z44": true
+    }
+  }
+}
