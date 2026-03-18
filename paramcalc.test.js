@@ -9,6 +9,7 @@ const {
   renderLetterResults,
   renderExplanation,
   buildPresetInput,
+  applyFieldInputData,
   getPresetModels,
   STABLE_LABEL_REFS,
 } = require('./paramcalc.js');
@@ -92,6 +93,35 @@ test('summary labels match AO and AP quantities', () => {
   assert.doesNotMatch(summary, />Total MoE param count</);
 });
 
+test('field resets clear stale values by field id before applying presets', () => {
+  const values = new Map();
+  const checks = new Map();
+
+  applyFieldInputData(
+    {
+      dense_attention_layers: '16',
+      moe_attention_layers: '30',
+      experts_include_dim: true,
+    },
+    (id, value) => values.set(id, value),
+    (id, value) => checks.set(id, value),
+  );
+
+  applyFieldInputData(
+    {
+      dense_attention_layers: '0',
+      moe_attention_layers: '0',
+      experts_include_dim: false,
+    },
+    (id, value) => values.set(id, value),
+    (id, value) => checks.set(id, value),
+  );
+
+  assert.equal(values.get('dense_attention_layers'), '0');
+  assert.equal(values.get('moe_attention_layers'), '0');
+  assert.equal(checks.get('experts_include_dim'), false);
+});
+
 test('letter results render the A-X sums between summary and explanation', () => {
   const r = computeResults(makeInput({
     dense_attention_layers: '2',
@@ -155,6 +185,37 @@ test('glm-4.7 keeps the base profile while glm-4.7-mtp includes the Hugging Face
   assert.equal(results.totalParams, 358337791296);
   assert.equal(results.moeAttentionLayers, 90);
   assert.equal(results.preFirstCount, 1604341760);
+});
+
+test('qwen 3.5 presets split non-mtp and mtp Hugging Face totals', () => {
+  assert.equal(computeResults(buildPresetInput('qwen3.5-27b')).totalParams, 27356737008);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-27b-mtp')).totalParams, 27781436400);
+
+  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b')).totalParams, 35107186736);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b-mtp')).totalParams, 35951827504);
+
+  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b')).totalParams, 122562824688);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b-mtp')).totalParams, 125086503920);
+
+  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b')).totalParams, 396802369456);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b-mtp')).totalParams, 403397937584);
+});
+
+test('nemotron 3 super mtp preset matches Hugging Face safetensors totals', () => {
+  assert.equal(
+    computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b-mtp')).totalParams,
+    123611012096,
+  );
+});
+
+test('nemotron 3 super base preset excludes the modeled mtp block', () => {
+  const base = computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b'));
+  const mtp = computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b-mtp'));
+
+  assert.equal(base.totalParams, 120720067072);
+  assert.equal(mtp.totalParams - base.totalParams, 2890945024);
+  assert.equal(base.totalLayersComputed, 88);
+  assert.equal(mtp.totalLayersComputed, 89);
 });
 
 test('summary and explanation include restored MoE aggregate rows', () => {

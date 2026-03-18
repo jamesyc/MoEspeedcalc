@@ -230,6 +230,16 @@ function createEmptyInput(overrides = {}) {
   };
 }
 
+function applyFieldInputData(fieldEntry, setVal, setChecked) {
+  Object.entries(fieldEntry || {}).forEach(([fieldId, value]) => {
+    if (typeof value === 'boolean') {
+      setChecked(fieldId, value);
+    } else {
+      setVal(fieldId, value);
+    }
+  });
+}
+
 function readPresetDataFromFs() {
   if (typeof require === 'undefined') return null;
   const fs = require('node:fs');
@@ -783,6 +793,8 @@ function clearSplitOnlyFields() {
     if (!el) return;
     if (el.type === 'checkbox') {
       el.checked = false;
+    } else if (el.type === 'number') {
+      el.value = '0';
     } else {
       el.value = '';
     }
@@ -833,7 +845,7 @@ async function prefillParamModel(model) {
     if (el) el.checked = v;
   };
 
-  applyStableRefPresetData(createEmptyInput(), setVal, setChecked);
+  applyFieldInputData(createEmptyInput(), setVal, setChecked);
   clearSplitOnlyFields();
   const applied = await applyPresetModel(model, setVal, setChecked);
   if (!applied) return;
@@ -905,6 +917,7 @@ if (typeof module !== 'undefined' && module.exports) {
     renderLetterResults,
     renderExplanation,
     createEmptyInput,
+    applyFieldInputData,
     buildPresetInput,
     getPresetModels,
     STABLE_LABEL_REFS,
