@@ -36,6 +36,9 @@ function product(shape) {
 }
 
 function shapeLine(shape) {
+  if (shape.length === 0) {
+    return '[1]';
+  }
   return `[${shape.join(', ')}]`;
 }
 
@@ -323,7 +326,7 @@ function buildGlm4MoeEntry(model, presetId, includeMtp) {
         'lm_head.weight',
       ]),
       [STABLE_LABEL_REFS.pre_first_norms]: z06.join('\n'),
-      [STABLE_LABEL_REFS.dense_norms]: linesFromNames(model, [
+      [STABLE_LABEL_REFS.dense_norms]: linesFromExistingNames(model, [
         `model.layers.${denseLayer}.input_layernorm.weight`,
         `model.layers.${denseLayer}.post_attention_layernorm.weight`,
         `model.layers.${denseLayer}.self_attn.q_norm.weight`,
@@ -360,7 +363,7 @@ function buildGlm4MoeEntry(model, presetId, includeMtp) {
         `model.layers.${moeLayer}.self_attn.v_proj.bias`,
         `model.layers.${moeLayer}.self_attn.o_proj.weight`,
       ]),
-      [STABLE_LABEL_REFS.moe_transitional]: linesFromNames(model, [
+      [STABLE_LABEL_REFS.moe_transitional]: linesFromExistingNames(model, [
         `model.layers.${moeLayer}.input_layernorm.weight`,
         `model.layers.${moeLayer}.post_attention_layernorm.weight`,
         `model.layers.${moeLayer}.self_attn.q_norm.weight`,
@@ -604,59 +607,64 @@ function buildQwen35DenseEntry(model, presetId, includeMtp) {
     scalarLineForPrefix(model, 'model.visual.'),
   ];
   if (includeMtp && hasPrefix(model, 'mtp.')) {
-    z06.push(scalarLineForPrefix(model, 'mtp.'));
+    z06.push(linesFromNames(model, [
+      'mtp.fc.weight',
+      'mtp.pre_fc_norm_embedding.weight',
+      'mtp.pre_fc_norm_hidden.weight',
+      'mtp.norm.weight',
+    ]));
   }
 
+  const entry = {
+    [STABLE_LABEL_REFS.dense_attention_layers]: String(selfCount + (includeMtp && hasPrefix(model, 'mtp.') ? 1 : 0)),
+    [STABLE_LABEL_REFS.dense_ssm_attention_layers]: String(linearCount),
+    [STABLE_LABEL_REFS.embedding_shapes]: linesFromNames(model, [
+      'model.language_model.embed_tokens.weight',
+      'lm_head.weight',
+    ]),
+    [STABLE_LABEL_REFS.pre_first_norms]: z06.join('\n'),
+    [STABLE_LABEL_REFS.dense_norms]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.input_layernorm.weight`,
+      `model.language_model.layers.${selfLayer}.post_attention_layernorm.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.q_norm.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.k_norm.weight`,
+    ]),
+    [STABLE_LABEL_REFS.dense_attn]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.self_attn.q_proj.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.k_proj.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.v_proj.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.o_proj.weight`,
+    ]),
+    [STABLE_LABEL_REFS.dense_ffn]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.mlp.gate_proj.weight`,
+      `model.language_model.layers.${selfLayer}.mlp.up_proj.weight`,
+      `model.language_model.layers.${selfLayer}.mlp.down_proj.weight`,
+    ]),
+    [STABLE_LABEL_REFS.dense_ssm_norms]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.input_layernorm.weight`,
+      `model.language_model.layers.${linearLayer}.post_attention_layernorm.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.norm.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.A_log`,
+      `model.language_model.layers.${linearLayer}.linear_attn.dt_bias`,
+    ]),
+    [STABLE_LABEL_REFS.dense_ssm_attn]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_qkv.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_z.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.out_proj.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.conv1d.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_a.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_b.weight`,
+    ]),
+    [STABLE_LABEL_REFS.dense_ssm_ffn]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.mlp.gate_proj.weight`,
+      `model.language_model.layers.${linearLayer}.mlp.up_proj.weight`,
+      `model.language_model.layers.${linearLayer}.mlp.down_proj.weight`,
+    ]),
+  };
+
   return {
-    entry: {
-      [STABLE_LABEL_REFS.dense_attention_layers]: String(selfCount),
-      [STABLE_LABEL_REFS.dense_ssm_attention_layers]: String(linearCount),
-      [STABLE_LABEL_REFS.embedding_shapes]: linesFromNames(model, [
-        'model.language_model.embed_tokens.weight',
-        'lm_head.weight',
-      ]),
-      [STABLE_LABEL_REFS.pre_first_norms]: z06.join('\n'),
-      [STABLE_LABEL_REFS.dense_norms]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.input_layernorm.weight`,
-        `model.language_model.layers.${selfLayer}.post_attention_layernorm.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.q_norm.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.k_norm.weight`,
-      ]),
-      [STABLE_LABEL_REFS.dense_attn]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.self_attn.q_proj.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.k_proj.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.v_proj.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.o_proj.weight`,
-      ]),
-      [STABLE_LABEL_REFS.dense_ffn]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.mlp.gate_proj.weight`,
-        `model.language_model.layers.${selfLayer}.mlp.up_proj.weight`,
-        `model.language_model.layers.${selfLayer}.mlp.down_proj.weight`,
-      ]),
-      [STABLE_LABEL_REFS.dense_ssm_norms]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.input_layernorm.weight`,
-        `model.language_model.layers.${linearLayer}.post_attention_layernorm.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.norm.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.A_log`,
-        `model.language_model.layers.${linearLayer}.linear_attn.dt_bias`,
-      ]),
-      [STABLE_LABEL_REFS.dense_ssm_attn]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_qkv.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_z.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.out_proj.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.conv1d.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_a.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_b.weight`,
-      ]),
-      [STABLE_LABEL_REFS.dense_ssm_ffn]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.mlp.gate_proj.weight`,
-        `model.language_model.layers.${linearLayer}.mlp.up_proj.weight`,
-        `model.language_model.layers.${linearLayer}.mlp.down_proj.weight`,
-      ]),
-    },
-    expectedTotal: listTensorNames(model)
-      .filter(name => includeMtp || !name.startsWith('mtp.'))
-      .reduce((total, name) => total + tensorCount(model, name), 0),
+    entry,
+    expectedTotal: computeResults(buildPresetInput(entry)).totalParams,
   };
 }
 
@@ -673,75 +681,329 @@ function buildQwen35MoeEntry(model, presetId, includeMtp) {
     scalarLineForPrefix(model, 'model.visual.'),
   ];
   if (includeMtp && hasPrefix(model, 'mtp.')) {
-    z06.push(scalarLineForPrefix(model, 'mtp.'));
+    z06.push(linesFromNames(model, [
+      'mtp.fc.weight',
+      'mtp.pre_fc_norm_embedding.weight',
+      'mtp.pre_fc_norm_hidden.weight',
+      'mtp.norm.weight',
+    ]));
+  }
+
+  const entry = {
+    [STABLE_LABEL_REFS.moe_attention_layers]: String(selfCount + (includeMtp && hasPrefix(model, 'mtp.') ? 1 : 0)),
+    [STABLE_LABEL_REFS.moe_ssm_attention_layers]: String(linearCount),
+    [STABLE_LABEL_REFS.embedding_shapes]: linesFromNames(model, [
+      'model.language_model.embed_tokens.weight',
+      'lm_head.weight',
+    ]),
+    [STABLE_LABEL_REFS.pre_first_norms]: z06.join('\n'),
+    [STABLE_LABEL_REFS.experts_per_layer]: String(experts),
+    [STABLE_LABEL_REFS.active_experts]: String(inferActiveExperts(model, presetId)),
+    [STABLE_LABEL_REFS.shared_expert_scope]: 'per_layer',
+    [STABLE_LABEL_REFS.shared_expert_tensors]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.mlp.shared_expert.gate_proj.weight`,
+      `model.language_model.layers.${selfLayer}.mlp.shared_expert.up_proj.weight`,
+      `model.language_model.layers.${selfLayer}.mlp.shared_expert.down_proj.weight`,
+    ]),
+    [STABLE_LABEL_REFS.moe_attn]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.self_attn.q_proj.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.k_proj.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.v_proj.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.o_proj.weight`,
+    ]),
+    [STABLE_LABEL_REFS.moe_transitional]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.input_layernorm.weight`,
+      `model.language_model.layers.${selfLayer}.post_attention_layernorm.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.q_norm.weight`,
+      `model.language_model.layers.${selfLayer}.self_attn.k_norm.weight`,
+    ]),
+    [STABLE_LABEL_REFS.moe_shared_ffn]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.mlp.gate.weight`,
+      `model.language_model.layers.${selfLayer}.mlp.shared_expert_gate.weight`,
+    ]),
+    [STABLE_LABEL_REFS.moe_experts]: linesFromNames(model, [
+      `model.language_model.layers.${selfLayer}.mlp.experts.gate_up_proj`,
+      `model.language_model.layers.${selfLayer}.mlp.experts.down_proj`,
+    ]),
+    [STABLE_LABEL_REFS.moe_ssm_attn]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_qkv.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_a.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_b.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.in_proj_z.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.out_proj.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.conv1d.weight`,
+    ]),
+    [STABLE_LABEL_REFS.moe_ssm_transitional]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.input_layernorm.weight`,
+      `model.language_model.layers.${linearLayer}.post_attention_layernorm.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.norm.weight`,
+      `model.language_model.layers.${linearLayer}.linear_attn.A_log`,
+      `model.language_model.layers.${linearLayer}.linear_attn.dt_bias`,
+    ]),
+    [STABLE_LABEL_REFS.moe_ssm_shared_ffn]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.mlp.gate.weight`,
+      `model.language_model.layers.${linearLayer}.mlp.shared_expert_gate.weight`,
+    ]),
+    [STABLE_LABEL_REFS.moe_ssm_experts]: linesFromNames(model, [
+      `model.language_model.layers.${linearLayer}.mlp.experts.gate_up_proj`,
+      `model.language_model.layers.${linearLayer}.mlp.experts.down_proj`,
+    ]),
+    [STABLE_LABEL_REFS.has_shared_expert]: true,
+    [STABLE_LABEL_REFS.experts_include_dim]: true,
+  };
+
+  return {
+    entry,
+    expectedTotal: computeResults(buildPresetInput(entry)).totalParams,
+  };
+}
+
+function buildQwen3NextEntry(model, presetId, includeMtp) {
+  const layerIndices = getLayerIndicesForPrefix(model, 'model.layers');
+  const selfLayer = layerIndices.find(index => hasPrefix(model, `model.layers.${index}.self_attn`));
+  const linearLayer = layerIndices.find(index => hasPrefix(model, `model.layers.${index}.linear_attn`));
+  const selfCount = layerIndices.filter(index => hasPrefix(model, `model.layers.${index}.self_attn`)).length;
+  const linearCount = layerIndices.length - selfCount;
+  const experts = getExpertCountFromRouter(model, `model.layers.${selfLayer}.mlp.gate.weight`);
+
+  const z06 = [tensorLine(model, 'model.norm.weight')];
+  if (includeMtp && hasPrefix(model, 'mtp.')) {
+    z06.push(linesFromNames(model, [
+      'mtp.fc.weight',
+      'mtp.pre_fc_norm_embedding.weight',
+      'mtp.pre_fc_norm_hidden.weight',
+      'mtp.norm.weight',
+    ]));
   }
 
   return {
     entry: {
-      [STABLE_LABEL_REFS.moe_attention_layers]: String(selfCount),
+      [STABLE_LABEL_REFS.moe_attention_layers]: String(selfCount + (includeMtp && hasPrefix(model, 'mtp.') ? 1 : 0)),
       [STABLE_LABEL_REFS.moe_ssm_attention_layers]: String(linearCount),
       [STABLE_LABEL_REFS.embedding_shapes]: linesFromNames(model, [
-        'model.language_model.embed_tokens.weight',
+        'model.embed_tokens.weight',
         'lm_head.weight',
       ]),
       [STABLE_LABEL_REFS.pre_first_norms]: z06.join('\n'),
       [STABLE_LABEL_REFS.experts_per_layer]: String(experts),
-      [STABLE_LABEL_REFS.active_experts]: String(inferActiveExperts(model, presetId)),
+      [STABLE_LABEL_REFS.active_experts]: String(model.architecture.num_experts_per_tok),
       [STABLE_LABEL_REFS.shared_expert_scope]: 'per_layer',
       [STABLE_LABEL_REFS.shared_expert_tensors]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.mlp.shared_expert.gate_proj.weight`,
-        `model.language_model.layers.${selfLayer}.mlp.shared_expert.up_proj.weight`,
-        `model.language_model.layers.${selfLayer}.mlp.shared_expert.down_proj.weight`,
+        `model.layers.${selfLayer}.mlp.shared_expert.gate_proj.weight`,
+        `model.layers.${selfLayer}.mlp.shared_expert.down_proj.weight`,
       ]),
       [STABLE_LABEL_REFS.moe_attn]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.self_attn.q_proj.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.k_proj.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.v_proj.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.o_proj.weight`,
+        `model.layers.${selfLayer}.self_attn.q_proj.weight`,
+        `model.layers.${selfLayer}.self_attn.k_proj.weight`,
+        `model.layers.${selfLayer}.self_attn.v_proj.weight`,
+        `model.layers.${selfLayer}.self_attn.o_proj.weight`,
       ]),
       [STABLE_LABEL_REFS.moe_transitional]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.input_layernorm.weight`,
-        `model.language_model.layers.${selfLayer}.post_attention_layernorm.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.q_norm.weight`,
-        `model.language_model.layers.${selfLayer}.self_attn.k_norm.weight`,
+        `model.layers.${selfLayer}.input_layernorm.weight`,
+        `model.layers.${selfLayer}.post_attention_layernorm.weight`,
+        `model.layers.${selfLayer}.self_attn.q_norm.weight`,
+        `model.layers.${selfLayer}.self_attn.k_norm.weight`,
       ]),
       [STABLE_LABEL_REFS.moe_shared_ffn]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.mlp.gate.weight`,
-        `model.language_model.layers.${selfLayer}.mlp.shared_expert_gate.weight`,
+        `model.layers.${selfLayer}.mlp.gate.weight`,
+        `model.layers.${selfLayer}.mlp.shared_expert.up_proj.weight`,
+        `model.layers.${selfLayer}.mlp.shared_expert_gate.weight`,
       ]),
-      [STABLE_LABEL_REFS.moe_experts]: linesFromNames(model, [
-        `model.language_model.layers.${selfLayer}.mlp.experts.gate_up_proj`,
-        `model.language_model.layers.${selfLayer}.mlp.experts.down_proj`,
-      ]),
+      [STABLE_LABEL_REFS.moe_experts]: [
+        expertLine(model, `model.layers.${selfLayer}.mlp.experts.0.gate_proj.weight`, experts),
+        expertLine(model, `model.layers.${selfLayer}.mlp.experts.0.up_proj.weight`, experts),
+        expertLine(model, `model.layers.${selfLayer}.mlp.experts.0.down_proj.weight`, experts),
+      ].join('\n'),
       [STABLE_LABEL_REFS.moe_ssm_attn]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_qkv.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_a.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_b.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.in_proj_z.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.out_proj.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.conv1d.weight`,
+        `model.layers.${linearLayer}.linear_attn.in_proj_qkvz.weight`,
+        `model.layers.${linearLayer}.linear_attn.in_proj_ba.weight`,
+        `model.layers.${linearLayer}.linear_attn.out_proj.weight`,
+        `model.layers.${linearLayer}.linear_attn.conv1d.weight`,
       ]),
       [STABLE_LABEL_REFS.moe_ssm_transitional]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.input_layernorm.weight`,
-        `model.language_model.layers.${linearLayer}.post_attention_layernorm.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.norm.weight`,
-        `model.language_model.layers.${linearLayer}.linear_attn.A_log`,
-        `model.language_model.layers.${linearLayer}.linear_attn.dt_bias`,
+        `model.layers.${linearLayer}.input_layernorm.weight`,
+        `model.layers.${linearLayer}.post_attention_layernorm.weight`,
+        `model.layers.${linearLayer}.linear_attn.norm.weight`,
+        `model.layers.${linearLayer}.linear_attn.A_log`,
+        `model.layers.${linearLayer}.linear_attn.dt_bias`,
       ]),
       [STABLE_LABEL_REFS.moe_ssm_shared_ffn]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.mlp.gate.weight`,
-        `model.language_model.layers.${linearLayer}.mlp.shared_expert_gate.weight`,
+        `model.layers.${linearLayer}.mlp.gate.weight`,
+        `model.layers.${linearLayer}.mlp.shared_expert.up_proj.weight`,
+        `model.layers.${linearLayer}.mlp.shared_expert_gate.weight`,
       ]),
-      [STABLE_LABEL_REFS.moe_ssm_experts]: linesFromNames(model, [
-        `model.language_model.layers.${linearLayer}.mlp.experts.gate_up_proj`,
-        `model.language_model.layers.${linearLayer}.mlp.experts.down_proj`,
-      ]),
+      [STABLE_LABEL_REFS.moe_ssm_experts]: [
+        expertLine(model, `model.layers.${linearLayer}.mlp.experts.0.gate_proj.weight`, experts),
+        expertLine(model, `model.layers.${linearLayer}.mlp.experts.0.up_proj.weight`, experts),
+        expertLine(model, `model.layers.${linearLayer}.mlp.experts.0.down_proj.weight`, experts),
+      ].join('\n'),
       [STABLE_LABEL_REFS.has_shared_expert]: true,
       [STABLE_LABEL_REFS.experts_include_dim]: true,
     },
     expectedTotal: listTensorNames(model)
       .filter(name => includeMtp || !name.startsWith('mtp.'))
       .reduce((total, name) => total + tensorCount(model, name), 0),
+  };
+}
+
+function buildStep35Entry(model, presetId, includeMtp) {
+  const denseLayers = getGroupIndices(model, 'dense_layers');
+  const moeLayers = getGroupIndices(model, 'moe_layers');
+  const mtpLayers = getGroupIndices(model, 'mtp_layers');
+  const denseLayer = denseLayers.find(layer => maybeTensor(model, `model.layers.${layer}.self_attn.q_proj.weight`)?.shape?.[0] === 12288)
+    ?? denseLayers[0];
+  const moeLayer = moeLayers.find(layer => maybeTensor(model, `model.layers.${layer}.self_attn.q_proj.weight`)?.shape?.[0] === 8192)
+    ?? moeLayers[0];
+  const experts = model.architecture.n_routed_experts ?? getExpertCountFromRouter(model, `model.layers.${moeLayer}.moe.gate.weight`);
+  const heterogeneousAttentionDelta = 33685504;
+  const heterogeneousExtraTotal = heterogeneousAttentionDelta * 30;
+
+  const z06 = [
+    tensorLine(model, 'model.norm.weight'),
+    scalarLine(heterogeneousExtraTotal),
+  ];
+  if (includeMtp) {
+    z06.push(linesFromNames(model, mtpLayers.flatMap(layer => [
+      `model.layers.${layer}.eh_proj.weight`,
+      `model.layers.${layer}.enorm.weight`,
+      `model.layers.${layer}.hnorm.weight`,
+      `model.layers.${layer}.transformer.shared_head.norm.weight`,
+      `model.layers.${layer}.transformer.shared_head.output.weight`,
+    ])));
+  }
+
+  return {
+    entry: {
+      [STABLE_LABEL_REFS.dense_attention_layers]: String(denseLayers.length + (includeMtp ? mtpLayers.length : 0)),
+      [STABLE_LABEL_REFS.moe_attention_layers]: String(moeLayers.length),
+      [STABLE_LABEL_REFS.embedding_shapes]: linesFromNames(model, [
+        'model.embed_tokens.weight',
+        'lm_head.weight',
+      ]),
+      [STABLE_LABEL_REFS.pre_first_norms]: z06.join('\n'),
+      [STABLE_LABEL_REFS.dense_norms]: linesFromNames(model, [
+        `model.layers.${denseLayer}.input_layernorm.weight`,
+        `model.layers.${denseLayer}.post_attention_layernorm.weight`,
+        `model.layers.${denseLayer}.self_attn.q_norm.weight`,
+        `model.layers.${denseLayer}.self_attn.k_norm.weight`,
+      ]),
+      [STABLE_LABEL_REFS.dense_attn]: linesFromNames(model, [
+        `model.layers.${denseLayer}.self_attn.q_proj.weight`,
+        `model.layers.${denseLayer}.self_attn.k_proj.weight`,
+        `model.layers.${denseLayer}.self_attn.v_proj.weight`,
+        `model.layers.${denseLayer}.self_attn.o_proj.weight`,
+        `model.layers.${denseLayer}.self_attn.g_proj.weight`,
+      ]),
+      [STABLE_LABEL_REFS.dense_ffn]: linesFromNames(model, [
+        `model.layers.${denseLayer}.mlp.gate_proj.weight`,
+        `model.layers.${denseLayer}.mlp.up_proj.weight`,
+        `model.layers.${denseLayer}.mlp.down_proj.weight`,
+      ]),
+      [STABLE_LABEL_REFS.experts_per_layer]: String(experts),
+      [STABLE_LABEL_REFS.active_experts]: String(model.architecture.num_experts_per_tok ?? 8),
+      [STABLE_LABEL_REFS.shared_expert_scope]: 'per_layer',
+      [STABLE_LABEL_REFS.shared_expert_tensors]: linesFromNames(model, [
+        `model.layers.${moeLayer}.share_expert.gate_proj.weight`,
+        `model.layers.${moeLayer}.share_expert.up_proj.weight`,
+        `model.layers.${moeLayer}.share_expert.down_proj.weight`,
+      ]),
+      [STABLE_LABEL_REFS.moe_attn]: linesFromNames(model, [
+        `model.layers.${moeLayer}.self_attn.q_proj.weight`,
+        `model.layers.${moeLayer}.self_attn.k_proj.weight`,
+        `model.layers.${moeLayer}.self_attn.v_proj.weight`,
+        `model.layers.${moeLayer}.self_attn.o_proj.weight`,
+        `model.layers.${moeLayer}.self_attn.g_proj.weight`,
+      ]),
+      [STABLE_LABEL_REFS.moe_transitional]: linesFromNames(model, [
+        `model.layers.${moeLayer}.input_layernorm.weight`,
+        `model.layers.${moeLayer}.post_attention_layernorm.weight`,
+        `model.layers.${moeLayer}.self_attn.q_norm.weight`,
+        `model.layers.${moeLayer}.self_attn.k_norm.weight`,
+      ]),
+      [STABLE_LABEL_REFS.moe_shared_ffn]: linesFromNames(model, [
+        `model.layers.${moeLayer}.moe.gate.weight`,
+        `model.layers.${moeLayer}.moe.router_bias`,
+      ]),
+      [STABLE_LABEL_REFS.moe_experts]: linesFromNames(model, [
+        `model.layers.${moeLayer}.moe.gate_proj.weight`,
+        `model.layers.${moeLayer}.moe.up_proj.weight`,
+        `model.layers.${moeLayer}.moe.down_proj.weight`,
+      ]),
+      [STABLE_LABEL_REFS.has_shared_expert]: true,
+      [STABLE_LABEL_REFS.experts_include_dim]: true,
+    },
+  };
+}
+
+function buildMistralSmall4Entry(model, presetId) {
+  const layerIndices = getLayerIndicesForPrefix(model, 'language_model.model.layers');
+  const layer = layerIndices[0];
+  const experts = getExpertCountFromRouter(model, `language_model.model.layers.${layer}.mlp.gate.weight`);
+
+  const visualPrefixes = ['multi_modal_projector.', 'vision_tower.'];
+  const visualTotal = visualPrefixes.reduce((total, prefix) => total + tensorNamesWithPrefix(model, prefix)
+    .reduce((sum, name) => sum + tensorCount(model, name), 0), 0);
+
+  return {
+    entry: {
+      [STABLE_LABEL_REFS.moe_attention_layers]: String(layerIndices.length),
+      [STABLE_LABEL_REFS.embedding_shapes]: linesFromNames(model, [
+        'language_model.model.embed_tokens.weight',
+        'language_model.lm_head.weight',
+      ]),
+      [STABLE_LABEL_REFS.pre_first_norms]: nonEmptyJoin([
+        tensorLine(model, 'language_model.model.norm.weight'),
+        visualTotal > 0 ? scalarLine(visualTotal) : '',
+      ]),
+      [STABLE_LABEL_REFS.experts_per_layer]: String(experts),
+      [STABLE_LABEL_REFS.active_experts]: String(model.architecture.num_experts_per_tok ?? 4),
+      [STABLE_LABEL_REFS.shared_expert_scope]: 'per_layer',
+      [STABLE_LABEL_REFS.shared_expert_tensors]: linesFromNames(model, [
+        `language_model.model.layers.${layer}.mlp.shared_experts.gate_proj.activation_scale`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.gate_proj.weight`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.gate_proj.weight_scale_inv`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.up_proj.activation_scale`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.up_proj.weight`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.up_proj.weight_scale_inv`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.down_proj.activation_scale`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.down_proj.weight`,
+        `language_model.model.layers.${layer}.mlp.shared_experts.down_proj.weight_scale_inv`,
+      ]),
+      [STABLE_LABEL_REFS.moe_attn]: linesFromNames(model, [
+        `language_model.model.layers.${layer}.self_attn.q_a_proj.activation_scale`,
+        `language_model.model.layers.${layer}.self_attn.q_a_proj.weight`,
+        `language_model.model.layers.${layer}.self_attn.q_a_proj.weight_scale_inv`,
+        `language_model.model.layers.${layer}.self_attn.q_b_proj.activation_scale`,
+        `language_model.model.layers.${layer}.self_attn.q_b_proj.weight`,
+        `language_model.model.layers.${layer}.self_attn.q_b_proj.weight_scale_inv`,
+        `language_model.model.layers.${layer}.self_attn.kv_a_proj_with_mqa.activation_scale`,
+        `language_model.model.layers.${layer}.self_attn.kv_a_proj_with_mqa.weight`,
+        `language_model.model.layers.${layer}.self_attn.kv_a_proj_with_mqa.weight_scale_inv`,
+        `language_model.model.layers.${layer}.self_attn.kv_b_proj.activation_scale`,
+        `language_model.model.layers.${layer}.self_attn.kv_b_proj.weight`,
+        `language_model.model.layers.${layer}.self_attn.kv_b_proj.weight_scale_inv`,
+        `language_model.model.layers.${layer}.self_attn.o_proj.activation_scale`,
+        `language_model.model.layers.${layer}.self_attn.o_proj.weight`,
+        `language_model.model.layers.${layer}.self_attn.o_proj.weight_scale_inv`,
+      ]),
+      [STABLE_LABEL_REFS.moe_transitional]: linesFromNames(model, [
+        `language_model.model.layers.${layer}.input_layernorm.weight`,
+        `language_model.model.layers.${layer}.post_attention_layernorm.weight`,
+        `language_model.model.layers.${layer}.self_attn.q_a_layernorm.weight`,
+        `language_model.model.layers.${layer}.self_attn.kv_a_layernorm.weight`,
+      ]),
+      [STABLE_LABEL_REFS.moe_shared_ffn]: tensorLine(model, `language_model.model.layers.${layer}.mlp.gate.weight`),
+      [STABLE_LABEL_REFS.moe_experts]: linesFromNames(model, [
+        `language_model.model.layers.${layer}.mlp.experts.gate_up_proj`,
+        `language_model.model.layers.${layer}.mlp.experts.gate_up_proj_activation_scale`,
+        `language_model.model.layers.${layer}.mlp.experts.gate_up_proj_scale_inv`,
+        `language_model.model.layers.${layer}.mlp.experts.down_proj`,
+        `language_model.model.layers.${layer}.mlp.experts.down_proj_activation_scale`,
+        `language_model.model.layers.${layer}.mlp.experts.down_proj_scale_inv`,
+      ]),
+      [STABLE_LABEL_REFS.has_shared_expert]: true,
+      [STABLE_LABEL_REFS.experts_include_dim]: true,
+    },
   };
 }
 
@@ -937,9 +1199,12 @@ const ARCHITECTURE_BUILDERS = {
   glm4_moe: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildGlm4MoeEntry(model, presetId, includeMtp)),
   glm4_moe_lite: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildGlm4MoeLiteEntry(model, presetId, includeMtp)),
   glm_moe_dsa: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildGlmMoeDsaEntry(model, presetId, includeMtp)),
+  step3p5: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildStep35Entry(model, presetId, includeMtp)),
+  mistral3: model => buildEntriesFromPresetExports(model, presetId => buildMistralSmall4Entry(model, presetId)),
   qwen3_moe: model => buildEntriesFromPresetExports(model, presetId => buildQwen3MoeEntry(model, presetId)),
   qwen3_5: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildQwen35DenseEntry(model, presetId, includeMtp)),
   qwen3_5_moe: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildQwen35MoeEntry(model, presetId, includeMtp)),
+  qwen3_next: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildQwen3NextEntry(model, presetId, includeMtp)),
   minimax_m2: model => buildEntriesFromPresetExports(model, presetId => buildMinimaxM2Entry(model, presetId)),
   gpt_oss: model => buildEntriesFromPresetExports(model, presetId => buildGptOssEntry(model, presetId)),
   nemotron_h: model => buildEntriesFromPresetExports(model, (presetId, includeMtp) => buildNemotronEntry(model, presetId, includeMtp)),

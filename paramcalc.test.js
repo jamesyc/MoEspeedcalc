@@ -200,6 +200,27 @@ test('qwen 3.5 presets now use the raw exported totals', () => {
   assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b-mtp')).totalParams, 403397928944);
 });
 
+test('newly added model families match raw export totals', () => {
+  assert.equal(computeResults(buildPresetInput('glm-4.5-air')).totalParams, 106852251264);
+  assert.equal(computeResults(buildPresetInput('glm-4.5-air-mtp')).totalParams, 110468824832);
+
+  assert.equal(computeResults(buildPresetInput('step-3.5-flash')).totalParams, 196956130368);
+  assert.equal(computeResults(buildPresetInput('step-3.5-flash-mtp')).totalParams, 199384301376);
+
+  assert.equal(computeResults(buildPresetInput('mistral-small-4-119b-2603')).totalParams, 119401317952);
+});
+
+test('qwen 3 next thinking preset models MTP as +1 layer plus bridge tensors', () => {
+  const base = computeResults(buildPresetInput('qwen3-next-80b-a3b-thinking'));
+  const mtp = computeResults(buildPresetInput('qwen3-next-80b-a3b-thinking-mtp'));
+
+  assert.equal(base.totalParams, 79674391296);
+  assert.equal(mtp.totalParams, 81324862720);
+  assert.equal(mtp.moeAttentionLayers, base.moeAttentionLayers + 1);
+  assert.equal(mtp.totalParams - base.totalParams, 1650471424);
+  assert.equal(mtp.preFirstCount - base.preFirstCount, 8394752);
+});
+
 test('zero-delta mtp variants without actual mtp tensors are suppressed', () => {
   assert.equal(PRESET_JSON.models['gpt-oss-20b-mtp'], undefined);
   assert.equal(PRESET_JSON.models['gpt-oss-120b-mtp'], undefined);

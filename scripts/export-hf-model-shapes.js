@@ -44,13 +44,41 @@ async function fetchShardHeader(repoId, revision, shardFile) {
   return JSON.parse(headerJson);
 }
 
-function summarizeLayerTensors(tensors, layerIndices) {
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null) return value;
+  }
+  return null;
+}
+
+function getArchitectureValue(config, key, ...alternateKeys) {
+  const textConfig = config.text_config || {};
+  const keys = [key, ...alternateKeys];
+  for (const candidate of keys) {
+    const value = firstDefined(config[candidate], textConfig[candidate]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function getLayerIndicesForPrefix(tensors, prefix) {
+  const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\d+)\\.`);
+  return [...new Set(
+    Object.keys(tensors)
+      .map(name => name.match(re))
+      .filter(Boolean)
+      .map(match => Number(match[1])),
+  )].sort((a, b) => a - b);
+}
+
+function summarizeLayerTensors(tensors, layerIndices, layerPrefix) {
   const layerSet = new Set(layerIndices);
   let tensorCount = 0;
   let parameterCount = 0;
+  const re = new RegExp(`^${layerPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\d+)\\.`);
 
   for (const [name, tensor] of Object.entries(tensors)) {
-    const match = name.match(/^model\.layers\.(\d+)\./);
+    const match = name.match(re);
     if (!match || !layerSet.has(Number(match[1]))) {
       continue;
     }
@@ -61,52 +89,115 @@ function summarizeLayerTensors(tensors, layerIndices) {
   return { tensorCount, parameterCount };
 }
 
+function inferDenseLayerCount({ tensors, layerIndices, layerPrefix, config }) {
+  const configured = getArchitectureValue(config, 'first_k_dense_replace');
+  if (configured != null) return Number(configured);
+
+  if (typeof config.moe_layers_enum === 'string' && config.moe_layers_enum.trim()) {
+    const moeLayerIndices = config.moe_layers_enum
+      .split(',')
+      .map(value => Number(value.trim()))
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b);
+    if (moeLayerIndices.length > 0) {
+      return moeLayerIndices[0];
+    }
+  }
+
+  for (const index of layerIndices) {
+    const prefix = `${layerPrefix}.${index}.`;
+    const isMoe = Object.keys(tensors).some(name =>
+      name.startsWith(prefix) && (
+        name.includes('.mlp.experts.')
+        || name.includes('.moe.')
+        || name.includes('.block_sparse_moe.')
+        || name.includes('.mixer.experts.')
+      ));
+    if (isMoe) {
+      return index;
+    }
+  }
+
+  return layerIndices.length;
+}
+
 function buildGroups({ tensors, config }) {
-  const layerIndices = [...new Set(
-    Object.keys(tensors)
-      .map((name) => {
-        const match = name.match(/^model\.layers\.(\d+)\./);
-        return match ? Number(match[1]) : null;
-      })
-      .filter((value) => value !== null),
-  )].sort((a, b) => a - b);
+  const layerPrefixCandidates = [
+    'model.layers',
+    'model.language_model.layers',
+    'language_model.model.layers',
+    'backbone.layers',
+  ];
+  const layerPrefix = layerPrefixCandidates
+    .map(prefix => ({ prefix, layerIndices: getLayerIndicesForPrefix(tensors, prefix) }))
+    .sort((a, b) => b.layerIndices.length - a.layerIndices.length)[0];
+
+  const mainLayerPrefix = layerPrefix?.layerIndices.length ? layerPrefix.prefix : null;
+  const layerIndices = mainLayerPrefix ? layerPrefix.layerIndices : [];
+  const mtpLayerPrefix = getLayerIndicesForPrefix(tensors, 'mtp.layers').length > 0 ? 'mtp.layers' : null;
+  const mtpRootIndices = mtpLayerPrefix ? getLayerIndicesForPrefix(tensors, mtpLayerPrefix) : [];
+  const hasMtpPrefix = Object.keys(tensors).some(name => name.startsWith('mtp.'));
+  const mtpStandaloneNames = hasMtpPrefix
+    ? Object.keys(tensors)
+      .filter(name => name.startsWith('mtp.') && !(mtpLayerPrefix && name.startsWith(`${mtpLayerPrefix}.`)))
+      .sort()
+    : [];
 
   const sharedTensorNames = Object.keys(tensors)
-    .filter((name) => !name.startsWith('model.layers.'))
+    .filter((name) => {
+      if (mainLayerPrefix && name.startsWith(`${mainLayerPrefix}.`)) return false;
+      if (mtpLayerPrefix && name.startsWith(`${mtpLayerPrefix}.`)) return false;
+      if (hasMtpPrefix && name.startsWith('mtp.')) return false;
+      return true;
+    })
     .sort();
   const sharedParameterCount = sharedTensorNames.reduce(
     (sum, name) => sum + tensors[name].parameter_count,
     0,
   );
 
-  const denseLayerCount = Number(config.first_k_dense_replace || 0);
-  const mtpLayerCount = Number(config.num_nextn_predict_layers || 0);
+  const denseLayerCount = inferDenseLayerCount({ tensors, layerIndices, layerPrefix: mainLayerPrefix, config });
+  const mtpLayerCount = Number(getArchitectureValue(config, 'num_nextn_predict_layers') || 0);
   const denseLayerIndices = layerIndices.filter((index) => index < denseLayerCount);
-  const mtpLayerIndices = mtpLayerCount > 0 ? layerIndices.slice(-mtpLayerCount) : [];
-  const mtpLayerSet = new Set(mtpLayerIndices);
-  const moeLayerIndices = layerIndices.filter(
-    (index) => index >= denseLayerCount && !mtpLayerSet.has(index),
-  );
+  const mtpLayerIndices = mtpRootIndices.length > 0
+    ? mtpRootIndices
+    : (mtpLayerCount > 0 ? layerIndices.slice(-mtpLayerCount) : []);
+  const mtpLayerSet = new Set(mtpRootIndices.length > 0 ? [] : mtpLayerIndices);
+  const moeLayerIndices = layerIndices.filter(index => index >= denseLayerCount && !mtpLayerSet.has(index));
 
-  const denseSummary = summarizeLayerTensors(tensors, denseLayerIndices);
-  const moeSummary = summarizeLayerTensors(tensors, moeLayerIndices);
-  const mtpSummary = summarizeLayerTensors(tensors, mtpLayerIndices);
+  const denseSummary = summarizeLayerTensors(tensors, denseLayerIndices, mainLayerPrefix);
+  const moeSummary = summarizeLayerTensors(tensors, moeLayerIndices, mainLayerPrefix);
+  const mtpSummary = summarizeLayerTensors(
+    tensors,
+    mtpLayerIndices,
+    mtpRootIndices.length > 0 ? mtpLayerPrefix : mainLayerPrefix,
+  );
+  const mtpStandaloneParameterCount = mtpStandaloneNames.reduce(
+    (sum, name) => sum + tensors[name].parameter_count,
+    0,
+  );
 
   const mtpMarkerTensors = [];
   if (mtpLayerIndices.length > 0) {
-    const referenceLayer = moeLayerIndices.at(-1);
-    const referenceSuffixes = new Set(
-      Object.keys(tensors)
-        .filter((name) => name.startsWith(`model.layers.${referenceLayer}.`))
-        .map((name) => name.slice(`model.layers.${referenceLayer}.`.length)),
-    );
+    if (mtpRootIndices.length > 0) {
+      mtpMarkerTensors.push(...mtpStandaloneNames);
+      mtpMarkerTensors.push(...Object.keys(tensors).filter(name => name.startsWith(`${mtpLayerPrefix}.`)).sort());
+    } else {
+      const referenceLayer = moeLayerIndices.at(-1);
+      const referencePrefix = `${mainLayerPrefix}.${referenceLayer}.`;
+      const referenceSuffixes = new Set(
+        Object.keys(tensors)
+          .filter(name => name.startsWith(referencePrefix))
+          .map(name => name.slice(referencePrefix.length)),
+      );
 
-    for (const mtpLayerIndex of mtpLayerIndices) {
-      const prefix = `model.layers.${mtpLayerIndex}.`;
-      for (const tensorName of Object.keys(tensors).filter((name) => name.startsWith(prefix)).sort()) {
-        const suffix = tensorName.slice(prefix.length);
-        if (!referenceSuffixes.has(suffix)) {
-          mtpMarkerTensors.push(tensorName);
+      for (const mtpLayerIndex of mtpLayerIndices) {
+        const prefix = `${mainLayerPrefix}.${mtpLayerIndex}.`;
+        for (const tensorName of Object.keys(tensors).filter(name => name.startsWith(prefix)).sort()) {
+          const suffix = tensorName.slice(prefix.length);
+          if (!referenceSuffixes.has(suffix)) {
+            mtpMarkerTensors.push(tensorName);
+          }
         }
       }
     }
@@ -114,7 +205,7 @@ function buildGroups({ tensors, config }) {
 
   return {
     shared: {
-      description: 'Tensors outside model.layers.* that are shared by both non-MTP and MTP exports.',
+      description: 'Tensors outside the text layer namespaces that are shared by both non-MTP and MTP exports.',
       tensor_names: sharedTensorNames,
       tensor_count: sharedTensorNames.length,
       parameter_count: sharedParameterCount,
@@ -122,24 +213,25 @@ function buildGroups({ tensors, config }) {
     dense_layers: {
       description: 'Early dense transformer layers before MoE routing begins.',
       layer_indices: denseLayerIndices,
-      tensor_name_prefixes: denseLayerIndices.map((index) => `model.layers.${index}.`),
+      tensor_name_prefixes: denseLayerIndices.map(index => `${mainLayerPrefix}.${index}.`),
       tensor_count: denseSummary.tensorCount,
       parameter_count: denseSummary.parameterCount,
     },
     moe_layers: {
       description: 'Standard routed MoE layers included in both non-MTP and MTP exports.',
       layer_indices: moeLayerIndices,
-      tensor_name_prefixes: moeLayerIndices.map((index) => `model.layers.${index}.`),
+      tensor_name_prefixes: moeLayerIndices.map(index => `${mainLayerPrefix}.${index}.`),
       tensor_count: moeSummary.tensorCount,
       parameter_count: moeSummary.parameterCount,
     },
     mtp_layers: {
       description: 'Next-token prediction layers that are only present in the MTP export.',
       layer_indices: mtpLayerIndices,
-      tensor_name_prefixes: mtpLayerIndices.map((index) => `model.layers.${index}.`),
+      tensor_name_prefixes: mtpLayerIndices.map(index =>
+        `${mtpRootIndices.length > 0 ? mtpLayerPrefix : mainLayerPrefix}.${index}.`),
       marker_tensors: mtpMarkerTensors,
-      tensor_count: mtpSummary.tensorCount,
-      parameter_count: mtpSummary.parameterCount,
+      tensor_count: mtpSummary.tensorCount + mtpStandaloneNames.length,
+      parameter_count: mtpSummary.parameterCount + mtpStandaloneParameterCount,
     },
   };
 }
@@ -214,16 +306,16 @@ function buildModelDoc({ repoId, revision, indexJson, config, shardHeaders, repo
       total_size_bytes: indexJson.metadata?.total_size || null,
     },
     architecture: {
-      model_type: config.model_type ?? null,
-      hidden_size: config.hidden_size ?? null,
-      intermediate_size: config.intermediate_size ?? null,
-      moe_intermediate_size: config.moe_intermediate_size ?? null,
-      num_hidden_layers: config.num_hidden_layers ?? null,
-      first_k_dense_replace: config.first_k_dense_replace ?? null,
-      num_nextn_predict_layers: config.num_nextn_predict_layers ?? null,
-      n_routed_experts: config.n_routed_experts ?? null,
-      n_shared_experts: config.n_shared_experts ?? null,
-      num_experts_per_tok: config.num_experts_per_tok ?? null,
+      model_type: firstDefined(config.model_type, config.text_config?.model_type),
+      hidden_size: getArchitectureValue(config, 'hidden_size'),
+      intermediate_size: getArchitectureValue(config, 'intermediate_size'),
+      moe_intermediate_size: getArchitectureValue(config, 'moe_intermediate_size'),
+      num_hidden_layers: getArchitectureValue(config, 'num_hidden_layers'),
+      first_k_dense_replace: getArchitectureValue(config, 'first_k_dense_replace'),
+      num_nextn_predict_layers: getArchitectureValue(config, 'num_nextn_predict_layers'),
+      n_routed_experts: getArchitectureValue(config, 'n_routed_experts', 'moe_num_experts'),
+      n_shared_experts: getArchitectureValue(config, 'n_shared_experts'),
+      num_experts_per_tok: getArchitectureValue(config, 'num_experts_per_tok', 'moe_top_k'),
     },
     summary: {
       total_tensors: Object.keys(tensors).length,

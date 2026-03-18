@@ -30,6 +30,20 @@ This repository contains a browser-based parameter calculator and the supporting
 
 `scripts/` contains the utility scripts for exporting tensor shapes, generating candidate presets, syncing generated presets into the canonical preset file, and rebuilding the generated preset bundle.
 
+## Modeling Rules
+
+`models/*.json` is the source of truth. If a hand-authored preset and the raw export disagree, fix the generator or exporter rather than editing the final preset by hand.
+
+Treat MTP as `+1` layer if the raw tensors really look like one extra layer plus a small set of standalone bridge tensors. Put the extra standalone tensors in `F` / `Z06` and only fall back to scalar aggregation when the MTP block cannot be represented cleanly as an existing layer bucket.
+
+Prefer real raw tensor shapes over synthetic merged shapes. The main exceptions are known effective-format corrections, such as cases where HF metadata reports a smaller quantized storage shape than the calculator should treat as the effective parameter shape.
+
+When a family has multiple real layer variants inside one nominal bucket, preserve the dominant layer as the bucket template and use explicit extra tensors or scalar corrections only for the residual difference. Do not silently average layer shapes.
+
+Zero-dimensional tensors from safetensors headers should be serialized as `[1]` in presets so the calculator counts them as one parameter.
+
+The exporter cannot assume every model uses `model.layers.*`. New families may place text layers under namespaces like `language_model.model.layers.*`, `model.language_model.layers.*`, or `backbone.layers.*`, and MTP may live either in tail text layers or a separate `mtp.layers.*` namespace.
+
 ## Workflow Path
 
 1. Export raw tensor-shape snapshots into `models/*.json`.
@@ -43,3 +57,9 @@ This repository contains a browser-based parameter calculator and the supporting
 5. Rebuild [paramcalc.presets.generated.js](/Users/jameschang/git/MoEspeedcalc/paramcalc.presets.generated.js) from the canonical JSON using `npm run build:paramcalc-presets`.
 
 6. Run `npm test` to verify the preset file, generator assumptions, and calculator output semantics all remain consistent.
+
+## Practical Checks
+
+When adding a new family, verify four things before syncing presets: the exporter grouped dense, MoE, and MTP layers correctly; the generator reproduces the raw non-MTP and MTP parameter totals exactly; zero-d tensor scalars are counted correctly; and the UI option list exposes every intended preset id, especially `-mtp` variants.
+
+If generation fails by a small constant, inspect omitted scalar tensors first. If it fails by a repeated per-layer delta, compare raw layer totals to see whether the family actually has more than one attention or MoE template.
