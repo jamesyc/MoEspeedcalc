@@ -148,6 +148,14 @@ code {
   font-weight: normal;
 }
 
+.form-group.is-disabled {
+  opacity: 0.45;
+}
+
+.form-group.is-disabled label {
+  color: var(--muted-text-color);
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {

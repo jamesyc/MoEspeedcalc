@@ -19,6 +19,10 @@ function formatFloat(value, decimals) {
   return s.replace(/\.0+$/, '').replace(/(\.[0-9]*[1-9])0+$/, '$1');
 }
 
+function formatBitLabel(bits) {
+  return `${formatFloat(bits, 5)}-bit`;
+}
+
 const modelDisplayNames = {
   'deepseek-v3': 'DeepSeek V3',
   'deepseek-v3-mtp': 'DeepSeek V3 MTP',
@@ -327,6 +331,7 @@ function updateSingleGpuState() {
   const gpu2Select = document.getElementById('gpu2-select');
   const gpu2Vram = document.getElementById('gpu2_vram');
   const gpu2Bw = document.getElementById('gpu2_bw');
+  const gpu2Fields = document.querySelectorAll('[data-gpu2-field]');
   if (checkbox.checked) {
     gpu2Select.disabled = true;
     gpu2Vram.disabled = true;
@@ -334,10 +339,12 @@ function updateSingleGpuState() {
     gpu2Select.value = 'custom';
     gpu2Vram.value = 0;
     gpu2Bw.value = document.getElementById('gpu1_bw').value;
+    gpu2Fields.forEach((field) => field.classList.add('is-disabled'));
   } else {
     gpu2Select.disabled = false;
     gpu2Vram.disabled = false;
     gpu2Bw.disabled = false;
+    gpu2Fields.forEach((field) => field.classList.remove('is-disabled'));
   }
 }
 
@@ -355,9 +362,11 @@ function calculate() {
   const denseParams = parseFloat(document.getElementById('dense_params').value);
   const activeMoeParams = parseFloat(document.getElementById('moe_params').value);
   const kvCache = parseFloat(document.getElementById('kv_cache').value) || 0;
+  const denseQuantBits = parseFloat(document.getElementById('dense_quantization').value);
+  const moeQuantBits = parseFloat(document.getElementById('moe_quantization').value);
 
   // Validate required fields; if any are missing or invalid, abort
-  if ([gpu1Vram, gpu1Bw, gpu2Vram, gpu2Bw, systemBw, totalParams, denseParams, activeMoeParams].some(v => isNaN(v) || v < 0)) {
+  if ([gpu1Vram, gpu1Bw, gpu2Vram, gpu2Bw, systemBw, totalParams, denseParams, activeMoeParams, denseQuantBits, moeQuantBits].some(v => isNaN(v) || v < 0)) {
     resultsDiv.innerHTML = '<div class="info-text">Please fill in all fields with valid (non‑negative) numbers before calculating.</div>';
     resultsDiv.classList.remove('hidden');
     return;
@@ -365,10 +374,11 @@ function calculate() {
 
   // Derived values
   const totalMoeParams = Math.max(totalParams - denseParams, 0);
-  const bytesPerParam = 2;
+  const denseBytesPerParam = denseQuantBits / 8;
+  const moeBytesPerParam = moeQuantBits / 8;
 
   // Dense part size in GB = dense params * bytes per param / 1e9
-  const denseSizeGB = denseParams * bytesPerParam / 1e9;
+  const denseSizeGB = denseParams * denseBytesPerParam / 1e9;
   const kvCacheSizeGB = kvCache;
   const denseKvGB = denseSizeGB + kvCacheSizeGB;
   const fitsOnGpu1 = denseKvGB <= gpu1Vram;
@@ -377,14 +387,14 @@ function calculate() {
   const denseLoadMs = gpu1Bw > 0 ? (denseKvGB / gpu1Bw) * 1000 : Infinity;
 
   // Total MoE size in GB
-  const moeTotalGB = totalMoeParams * bytesPerParam / 1e9;
+  const moeTotalGB = totalMoeParams * moeBytesPerParam / 1e9;
   // Share of MoE stored on GPU2
   let moeShare = 0;
   if (moeTotalGB > 0 && gpu2Vram > 0) {
     moeShare = Math.min(1, gpu2Vram / moeTotalGB);
   }
   // Time for MoE portion on GPU2
-  const activeMoeSizeGB = activeMoeParams * bytesPerParam / 1e9;
+  const activeMoeSizeGB = activeMoeParams * moeBytesPerParam / 1e9;
   const gpu2MoeMs = gpu2Bw > 0 ? (moeShare * activeMoeSizeGB / gpu2Bw) * 1000 : Infinity;
   // Time for MoE portion from system RAM
   const systemShare = 1 - moeShare;
@@ -397,11 +407,16 @@ function calculate() {
   // Build HTML output with formulas and values
   let html = '';
   html += '<h2>Results</h2>';
+  html += '<div class="result-row">';
+  html += '<span class="result-title">Selected parameter size:</span>';
+  html += `<span class="result-value">Always-active ${formatBitLabel(denseQuantBits)}, Active MoE ${formatBitLabel(moeQuantBits)}</span>`;
+  html += `<div class="equation">Always-active uses ${formatFloat(denseQuantBits, 5)} bits/param and active MoE uses ${formatFloat(moeQuantBits, 5)} bits/param. KV cache is used directly as entered in GB.</div>`;
+  html += '</div>';
   // Dense and KV components
   html += '<div class="result-row">';
   html += '<span class="result-title">Always-active parameter size:</span>';
   html += `<span class="result-value">${formatFloat(denseSizeGB, 4)}&nbsp;GB</span>`;
-  const eqDense = `${formatNumber(denseParams)} params × 2 bytes/param ÷ 1e9 bytes/GB = ${formatFloat(denseSizeGB, 4)} GB`;
+  const eqDense = `${formatNumber(denseParams)} params × (${formatFloat(denseQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB = ${formatFloat(denseSizeGB, 4)} GB`;
   html += `<div class="equation">${eqDense}</div>`;
   html += '</div>';
   html += '<div class="result-row">';
@@ -438,7 +453,7 @@ function calculate() {
   html += '<div class="result-row">';
   html += '<span class="result-title">Total MoE size:</span>';
   html += `<span class="result-value">${formatFloat(moeTotalGB, 4)}&nbsp;GB</span>`;
-  const eq3 = `${formatNumber(totalMoeParams)} params × 2 bytes/param ÷ 1e9 bytes/GB = ${formatFloat(moeTotalGB, 4)} GB`;
+  const eq3 = `${formatNumber(totalMoeParams)} params × (${formatFloat(moeQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB = ${formatFloat(moeTotalGB, 4)} GB`;
   html += `<div class="equation">${eq3}</div>`;
   html += '</div>';
   // GPU2 share
@@ -455,14 +470,14 @@ function calculate() {
   html += '<div class="result-row">';
   html += '<span class="result-title">MoE load time on GPU&nbsp;2:</span>';
   html += `<span class="result-value">${formatFloat(gpu2MoeMs, 3)}&nbsp;ms</span>`;
-  const eq5 = `${formatFloat(moeShare, 4)} × (${formatNumber(activeMoeParams)} params × 2 bytes/param ÷ 1e9 bytes/GB) ÷ ${gpu2Bw} GB/s × 1000 ms/s = ${formatFloat(gpu2MoeMs, 3)} ms`;
+  const eq5 = `${formatFloat(moeShare, 4)} × (${formatNumber(activeMoeParams)} params × (${formatFloat(moeQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB) ÷ ${gpu2Bw} GB/s × 1000 ms/s = ${formatFloat(gpu2MoeMs, 3)} ms`;
   html += `<div class="equation">${eq5}</div>`;
   html += '</div>';
   // System RAM time
   html += '<div class="result-row">';
   html += '<span class="result-title">MoE load time from system RAM:</span>';
   html += `<span class="result-value">${formatFloat(systemMoeMs, 3)}&nbsp;ms</span>`;
-  const eq6 = `${formatFloat(systemShare, 4)} × (${formatNumber(activeMoeParams)} params × 2 bytes/param ÷ 1e9 bytes/GB) ÷ ${systemBw} GB/s × 1000 ms/s = ${formatFloat(systemMoeMs, 3)} ms`;
+  const eq6 = `${formatFloat(systemShare, 4)} × (${formatNumber(activeMoeParams)} params × (${formatFloat(moeQuantBits, 5)} bits/param ÷ 8 bits/byte) ÷ 1e9 bytes/GB) ÷ ${systemBw} GB/s × 1000 ms/s = ${formatFloat(systemMoeMs, 3)} ms`;
   html += `<div class="equation">${eq6}</div>`;
   html += '</div>';
   // Total ms per token

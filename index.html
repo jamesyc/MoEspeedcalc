@@ -38,7 +38,7 @@
           </select>
           <label class="single-gpu-label"><input type="checkbox" id="single-gpu" /> No second GPU</label>
         </div>
-        <div class="form-group">
+        <div class="form-group" data-gpu2-field>
           <label for="gpu2-select">GPU&nbsp;2 preset</label>
           <select id="gpu2-select">
             <!-- Options will be populated by JavaScript -->
@@ -51,7 +51,7 @@
           <label for="gpu1_vram">GPU&nbsp;1 VRAM capacity (GB)</label>
           <input type="number" id="gpu1_vram" min="0" step="0.1" />
         </div>
-        <div class="form-group">
+        <div class="form-group" data-gpu2-field>
           <label for="gpu2_vram">GPU&nbsp;2 VRAM capacity (GB)</label>
           <input type="number" id="gpu2_vram" min="0" step="0.1" />
         </div>
@@ -61,7 +61,7 @@
           <label for="gpu1_bw">GPU&nbsp;1 VRAM bandwidth (GB/s)</label>
           <input type="number" id="gpu1_bw" min="0" step="0.1" />
         </div>
-        <div class="form-group">
+        <div class="form-group" data-gpu2-field>
           <label for="gpu2_bw">GPU&nbsp;2 VRAM bandwidth (GB/s)</label>
           <input type="number" id="gpu2_bw" min="0" step="0.1" />
         </div>
@@ -104,6 +104,36 @@
         <div class="form-group">
           <label for="kv_cache">KV cache size (GB)</label>
           <input type="number" id="kv_cache" min="0" step="0.1" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="dense_quantization">Always-active parameters size</label>
+          <select id="dense_quantization">
+            <option value="1.58496">1.58-bit (bitnet)</option>
+            <option value="2.5">2.5-bit (Q2)</option>
+            <option value="3.5">3.5-bit (Q3)</option>
+            <option value="4.5">4.5-bit (Q4)</option>
+            <option value="5.5">5.5-bit (Q5)</option>
+            <option value="6.5">6.5-bit (Q6)</option>
+            <option value="8.5" selected>8.5-bit (Q8)</option>
+            <option value="16">16-bit (FP16)</option>
+            <option value="32">32-bit (FP32)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="moe_quantization">MoE expert parameters size</label>
+          <select id="moe_quantization">
+            <option value="1.58496">1.58-bit (bitnet)</option>
+            <option value="2.5">2.5-bit (Q2)</option>
+            <option value="3.5">3.5-bit (Q3)</option>
+            <option value="4.5">4.5-bit (Q4)</option>
+            <option value="5.5">5.5-bit (Q5)</option>
+            <option value="6.5">6.5-bit (Q6)</option>
+            <option value="8.5" selected>8.5-bit (Q8)</option>
+            <option value="16">16-bit (FP16)</option>
+            <option value="32">32-bit (FP32)</option>
+          </select>
         </div>
       </div>
       </div>
