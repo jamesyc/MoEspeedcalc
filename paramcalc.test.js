@@ -142,6 +142,11 @@ test('per-expert presets explicitly disable tensors-include-E checkbox', () => {
   assert.equal(PRESET_JSON.models['deepseek-v3-mtp'].Z44, false);
 });
 
+test('minimax has no separate mtp preset entry', () => {
+  assert.equal(PRESET_JSON.models['minimax-m2.5-mtp'], undefined);
+  assert.equal(PRESET_JSON.modelOrder.includes('minimax-m2.5-mtp'), false);
+});
+
 test('glm-4.7 keeps the base profile while glm-4.7-mtp includes the Hugging Face mtp block', () => {
   const baseResults = computeResults(buildPresetInput('glm-4.7'));
   assert.equal(baseResults.totalParams, 352797829024);
@@ -192,7 +197,7 @@ test('preset json is keyed by stable Z refs', () => {
   }
 });
 
-test('preset models preserve explanation stable refs and match legacy published outputs', () => {
+test('preset models preserve explanation stable refs and match locked baseline outputs', () => {
   const expectedExplanationRefs = Object.entries(STABLE_LABEL_REFS)
     .filter(([key]) => key.startsWith('explanation_'))
     .map(([, ref]) => ref);
@@ -215,6 +220,6 @@ test('preset models preserve explanation stable refs and match legacy published 
       totalMlp: results.totalMlp,
       totalAttn: results.totalAttn,
       totalLayersComputed: results.totalLayersComputed,
-    }, LEGACY_BASELINES.models[model], `${model} no longer matches published legacy output`);
+    }, LEGACY_BASELINES.models[model], `${model} no longer matches locked baseline output`);
   }
 });

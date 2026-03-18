@@ -530,7 +530,7 @@ function renderSummary(r) {
   html += `<tr><td>Total MoE experts param count</td><td>${fmt(r.moeExpertTotal)}</td></tr>`;
   html += `<tr><td>Total MLP param count</td><td>${fmt(r.totalMlp)}</td></tr>`;
   html += `<tr><td>MoE inactive per token param count</td><td>${fmt(r.moeInactivePerToken)}</td></tr>`;
-  html += `<tr><td>Total attention/SSM param count</td><td>${fmt(r.totalAttn)}</td></tr>`;
+  html += `<tr><td>Total attention param count</td><td>${fmt(r.totalAttn)}</td></tr>`;
   html += '</tbody></table>';
   return html;
 }
@@ -675,7 +675,7 @@ function renderExplanation(r) {
   html += renderRow('ER', 'Total MLP param count', fmt(r.totalMlp), totalMlpNum, `A × I + B × L + C × (S + ${shared} + EF) + D × (W + ${shared} + EG)`, STABLE_LABEL_REFS.explanation_total_mlp);
 
   const totalAttnNum = `${fmt(r.denseAttentionLayers)} × ${fmt(r.denseAttentionOnly.attn)} + ${fmt(r.denseSsmAttentionLayers)} × ${fmt(r.denseSsmAttention.attn)} + ${fmt(r.moeAttentionLayers)} × ${fmt(r.moeAttentionOnly.attn)} + ${fmt(r.moeSsmAttentionLayers)} × ${fmt(r.moeSsmAttention.attn)} = ${fmt(r.totalAttn)}`;
-  html += renderRow('ES', 'Total attention/SSM param count', fmt(r.totalAttn), totalAttnNum, 'A × H + B × K + C × Q + D × U', STABLE_LABEL_REFS.explanation_total_attn);
+  html += renderRow('ES', 'Total attention param count', fmt(r.totalAttn), totalAttnNum, 'A × H + B × K + C × Q + D × U', STABLE_LABEL_REFS.explanation_total_attn);
 
   const moeExpertsActiveNum = r.expertsIncludeDim
     ? (r.expertsPer > 0

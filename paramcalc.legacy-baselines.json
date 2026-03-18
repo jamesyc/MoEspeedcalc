@@ -2,7 +2,7 @@
   "meta": {
     "source_url": "https://jamesyc.github.io/MoEspeedcalc/paramcalc.html",
     "source_date": "2026-03-17",
-    "notes": "Legacy baseline values captured from the published pre-split paramcalc for overlapping preset outputs."
+    "notes": "Locked baseline values for preset outputs. Most preserve the published pre-split paramcalc outputs; model-specific corrections may instead align with the upstream Hugging Face tensor files."
   },
   "fields": [
     "totalParams",
@@ -96,12 +96,12 @@
       "totalLayersComputed": 79
     },
     "minimax-m2.5": {
-      "totalParams": 228689764864,
-      "totalActive": 11030553088,
-      "totalAlwaysActive": 4009288192,
-      "moeExpertTotal": 224680476672,
-      "moeExpertsOnly": 7021264896,
-      "totalMlp": 224729251328,
+      "totalParams": 228703644928,
+      "totalActive": 11031148288,
+      "totalAlwaysActive": 4009454848,
+      "moeExpertTotal": 224694190080,
+      "moeExpertsOnly": 7021693440,
+      "totalMlp": 224742964736,
       "totalAttn": 2730491904,
       "totalLayersComputed": 62
     },
