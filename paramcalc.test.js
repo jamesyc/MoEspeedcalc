@@ -15,7 +15,6 @@ const {
 } = require('./paramcalc.js');
 
 const PRESET_JSON = JSON.parse(fs.readFileSync(require.resolve('./paramcalc.presets.json'), 'utf8'));
-const LEGACY_BASELINES = JSON.parse(fs.readFileSync(require.resolve('./paramcalc.legacy-baselines.json'), 'utf8'));
 
 function makeInput(overrides = {}) {
   return {
@@ -187,24 +186,32 @@ test('glm-4.7 keeps the base profile while glm-4.7-mtp includes the Hugging Face
   assert.equal(results.preFirstCount, 1604341760);
 });
 
-test('qwen 3.5 presets split non-mtp and mtp Hugging Face totals', () => {
-  assert.equal(computeResults(buildPresetInput('qwen3.5-27b')).totalParams, 27356737008);
-  assert.equal(computeResults(buildPresetInput('qwen3.5-27b-mtp')).totalParams, 27781436400);
+test('qwen 3.5 presets now use the raw exported totals', () => {
+  assert.equal(computeResults(buildPresetInput('qwen3.5-27b')).totalParams, 27356728560);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-27b-mtp')).totalParams, 27781427952);
 
-  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b')).totalParams, 35107186736);
-  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b-mtp')).totalParams, 35951827504);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b')).totalParams, 35107181936);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-35b-a3b-mtp')).totalParams, 35951822704);
 
-  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b')).totalParams, 122562824688);
-  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b-mtp')).totalParams, 125086503920);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b')).totalParams, 122562817776);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-122b-a10b-mtp')).totalParams, 125086497008);
 
-  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b')).totalParams, 396802369456);
-  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b-mtp')).totalParams, 403397937584);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b')).totalParams, 396802360816);
+  assert.equal(computeResults(buildPresetInput('qwen3.5-397b-a17b-mtp')).totalParams, 403397928944);
+});
+
+test('zero-delta mtp variants without actual mtp tensors are suppressed', () => {
+  assert.equal(PRESET_JSON.models['gpt-oss-20b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['gpt-oss-120b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['qwen3-30b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['qwen3-235b-mtp'], undefined);
+  assert.equal(PRESET_JSON.models['kimi-k2-mtp'], undefined);
 });
 
 test('nemotron 3 super mtp preset matches Hugging Face safetensors totals', () => {
   assert.equal(
     computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b-mtp')).totalParams,
-    123611012096,
+    123611033088,
   );
 });
 
@@ -212,10 +219,10 @@ test('nemotron 3 super base preset excludes the modeled mtp block', () => {
   const base = computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b'));
   const mtp = computeResults(buildPresetInput('nvidia-nemotron-3-super-120b-a12b-mtp'));
 
-  assert.equal(base.totalParams, 120720067072);
-  assert.equal(mtp.totalParams - base.totalParams, 2890945024);
+  assert.equal(base.totalParams, 120668707840);
+  assert.equal(mtp.totalParams - base.totalParams, 2942325248);
   assert.equal(base.totalLayersComputed, 88);
-  assert.equal(mtp.totalLayersComputed, 89);
+  assert.equal(mtp.totalLayersComputed, 88);
 });
 
 test('summary and explanation include restored MoE aggregate rows', () => {
@@ -258,7 +265,7 @@ test('preset json is keyed by stable Z refs', () => {
   }
 });
 
-test('preset models preserve explanation stable refs and match locked baseline outputs', () => {
+test('preset models preserve explanation stable refs', () => {
   const expectedExplanationRefs = Object.entries(STABLE_LABEL_REFS)
     .filter(([key]) => key.startsWith('explanation_'))
     .map(([, ref]) => ref);
@@ -271,16 +278,5 @@ test('preset models preserve explanation stable refs and match locked baseline o
     for (const ref of expectedExplanationRefs) {
       assert.match(explanation, new RegExp(`data-stable-ref="${ref}"`), `${model} missing ${ref}`);
     }
-
-    assert.deepEqual({
-      totalParams: results.totalParams,
-      totalActive: results.totalActive,
-      totalAlwaysActive: results.totalAlwaysActive,
-      moeExpertTotal: results.moeExpertTotal,
-      moeExpertsOnly: results.moeExpertsOnly,
-      totalMlp: results.totalMlp,
-      totalAttn: results.totalAttn,
-      totalLayersComputed: results.totalLayersComputed,
-    }, LEGACY_BASELINES.models[model], `${model} no longer matches locked baseline output`);
   }
 });

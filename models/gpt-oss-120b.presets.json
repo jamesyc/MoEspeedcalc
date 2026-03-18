@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "format": "stable-ref-v1",
+    "source": "generated from models/gpt-oss-120b.json",
+    "notes": "Candidate preset entries derived from gpt-oss-120b.json without editing paramcalc.presets.json. Uses raw Hugging Face tensor orientations, so some display shapes may differ from hand-authored presets even when parameter totals match."
+  },
+  "modelOrder": [
+    "gpt-oss-120b"
+  ],
+  "models": {
+    "gpt-oss-120b": {
+      "Z03": "36",
+      "Z05": "[201088, 2880]\n[201088, 2880]",
+      "Z06": "[2880]",
+      "Z13": "128",
+      "Z14": "4",
+      "Z15": "per_layer",
+      "Z17": "[4096, 2880]\n[4096]\n[512, 2880]\n[512]\n[512, 2880]\n[512]\n[2880, 4096]\n[2880]\n[64]",
+      "Z18": "[2880]\n[2880]",
+      "Z19": "[128, 2880]\n[128]",
+      "Z20": "[128, 5760, 2880]\n[128, 2880, 2880]\n[128, 5760]\n[128, 2880]",
+      "Z44": true
+    }
+  }
+}

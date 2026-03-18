@@ -1,0 +1,178 @@
+# Model Shape JSON Format
+
+The `models/*.json` files are extracted from Hugging Face `safetensors` exports and are intended to be the source of truth for tensor shapes.
+
+Right now, the source of truth is the scripts, not an LLM.
+
+## Scope
+
+Given a model repo such as `https://huggingface.co/zai-org/GLM-5/tree/main`, each JSON file captures:
+
+- The Hugging Face model id and revision.
+- The `model.safetensors.index.json` metadata used to resolve tensor names to shard files.
+- The relevant model architecture fields from `config.json`.
+- Every tensor name present in the exported safetensors files.
+- The tensor dtype, exact shape, shard filename, raw safetensors `data_offsets`, and derived parameter count.
+- Per-shard summary counts so it is easy to validate extraction completeness.
+- Grouping metadata that makes it obvious which tensors belong to the non-MTP export and which tensors are MTP-only.
+
+## Format
+
+```json
+{
+  "format": "hf-safetensors-shapes-v1",
+  "model_id": "zai-org/GLM-5",
+  "revision": "main",
+  "source": {
+    "repo_url": "https://huggingface.co/zai-org/GLM-5/tree/main",
+    "index_url": "https://huggingface.co/zai-org/GLM-5/resolve/main/model.safetensors.index.json",
+    "config_url": "https://huggingface.co/zai-org/GLM-5/resolve/main/config.json",
+    "extracted_at": "2026-03-17T00:00:00.000Z",
+    "total_size_bytes": 1507728316928
+  },
+  "architecture": {
+    "hidden_size": 6144,
+    "intermediate_size": 12288,
+    "moe_intermediate_size": 2048,
+    "num_hidden_layers": 78,
+    "first_k_dense_replace": 3,
+    "num_nextn_predict_layers": 1,
+    "n_routed_experts": 256,
+    "n_shared_experts": 1,
+    "num_experts_per_tok": 8
+  },
+  "summary": {
+    "total_tensors": 12345,
+    "total_shards": 282,
+    "total_parameters": 753864139008
+  },
+  "groups": {
+    "shared": {
+      "description": "Tensors outside model.layers.* that are shared by both non-MTP and MTP exports.",
+      "tensor_names": ["lm_head.weight", "model.embed_tokens.weight", "model.norm.weight"],
+      "tensor_count": 3,
+      "parameter_count": 1903171584
+    },
+    "dense_layers": {
+      "description": "Early dense transformer layers before MoE routing begins.",
+      "layer_indices": [0, 1, 2],
+      "tensor_name_prefixes": ["model.layers.0.", "model.layers.1.", "model.layers.2."],
+      "tensor_count": 51,
+      "parameter_count": 1034207232
+    },
+    "moe_layers": {
+      "description": "Standard routed MoE layers included in both non-MTP and MTP exports.",
+      "layer_indices": [3, 4, 5],
+      "tensor_name_prefixes": ["model.layers.3.", "model.layers.4.", "model.layers.5."],
+      "tensor_count": 2361,
+      "parameter_count": 29858784000
+    },
+    "mtp_layers": {
+      "description": "Next-token prediction layers that are only present in the MTP export.",
+      "layer_indices": [78],
+      "tensor_name_prefixes": ["model.layers.78."],
+      "marker_tensors": [
+        "model.layers.78.eh_proj.weight",
+        "model.layers.78.enorm.weight",
+        "model.layers.78.hnorm.weight",
+        "model.layers.78.shared_head.norm.weight"
+      ],
+      "tensor_count": 791,
+      "parameter_count": 9952920576
+    }
+  },
+  "preset_exports": {
+    "glm-5": {
+      "description": "Export the non-MTP preset by excluding the MTP-only layer group.",
+      "include_groups": ["shared", "dense_layers", "moe_layers"],
+      "total_parameters": 743911218432
+    },
+    "glm-5-mtp": {
+      "description": "Export the MTP preset by including the MTP-only layer group.",
+      "include_groups": ["shared", "dense_layers", "moe_layers", "mtp_layers"],
+      "total_parameters": 753864139008,
+      "mtp_only_parameter_delta": 9952920576
+    }
+  },
+  "shards": [
+    {
+      "file": "model-00001-of-00282.safetensors",
+      "tensor_count": 37,
+      "parameter_count": 1903912960,
+      "metadata": {}
+    }
+  ],
+  "tensors": {
+    "lm_head.weight": {
+      "dtype": "BF16",
+      "shape": [6144, 154880],
+      "shard": "model-00001-of-00282.safetensors",
+      "data_offsets": [0, 1903165440],
+      "parameter_count": 951582720
+    }
+  }
+}
+```
+
+## Extraction Rules
+
+- `summary.total_parameters` is the sum of `parameter_count` across all tensors.
+- `parameter_count` is the product of `shape` dimensions, or `1` for scalar tensors.
+- `data_offsets` are copied directly from each safetensors shard header.
+- `shards[].tensor_count` and `shards[].parameter_count` are derived from the tensors assigned to that shard.
+- Tensor names are preserved exactly as Hugging Face publishes them.
+- `groups.mtp_layers` uses the last `config.num_nextn_predict_layers` entries in `model.layers.*`.
+- `groups.mtp_layers.marker_tensors` are the tensor suffixes that only exist on the MTP layer compared with the last non-MTP MoE layer.
+- `preset_exports` is the canonical split for generating preset definitions from one model JSON.
+
+## Generating Files
+
+### `model_name.json`
+
+This is generated by running [scripts/export-hf-model-shapes.js](/Users/jameschang/git/MoEspeedcalc/scripts/export-hf-model-shapes.js).
+
+Example:
+
+```bash
+node scripts/export-hf-model-shapes.js zai-org/GLM-5 models/glm-5.json
+```
+
+This script is the canonical way to create `models/model_name.json`. An LLM is optional and does not need to manually write the JSON.
+
+### `model_name.presets.json`
+
+This is generated by running [scripts/generate-presets-from-model.js](/Users/jameschang/git/MoEspeedcalc/scripts/generate-presets-from-model.js).
+
+Example:
+
+```bash
+node scripts/generate-presets-from-model.js models/glm-5.json models/glm-5.presets.json
+```
+
+This script reads `models/model_name.json` and writes `models/model_name.presets.json`.
+
+- If the model has no MTP group, it outputs one preset.
+- If the model has an MTP group, it outputs two presets: base and `-mtp`.
+- The script dispatches by architecture and should be extended with additional builders as new model families are added.
+
+### End-to-end
+
+```bash
+node scripts/export-hf-model-shapes.js zai-org/GLM-5 models/glm-5.json
+node scripts/generate-presets-from-model.js models/glm-5.json models/glm-5.presets.json
+```
+
+Run:
+
+```bash
+node scripts/export-hf-model-shapes.js zai-org/GLM-5 models/glm-5.json
+```
+
+This script:
+
+1. Downloads `model.safetensors.index.json`.
+2. Enumerates the unique shard files from the weight map.
+3. Range-requests the safetensors headers for each shard.
+4. Writes a normalized JSON file under `models/`.
+
+The intent is that future preset updates can read from `models/*.json` instead of manually transcribing shapes from Hugging Face.

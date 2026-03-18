@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "format": "stable-ref-v1",
+    "source": "generated from models/kimi-k2.json",
+    "notes": "Candidate preset entries derived from kimi-k2.json without editing paramcalc.presets.json. Uses raw Hugging Face tensor orientations, so some display shapes may differ from hand-authored presets even when parameter totals match."
+  },
+  "modelOrder": [
+    "kimi-k2"
+  ],
+  "models": {
+    "kimi-k2": {
+      "Z01": "1",
+      "Z03": "60",
+      "Z05": "[163840, 7168]\n[163840, 7168]",
+      "Z06": "[7168]",
+      "Z07": "[7168]\n[7168]",
+      "Z08": "[1536, 7168]\n[12, 56]\n[12288, 1536]\n[96, 12]\n[576, 7168]\n[5, 56]\n[16384, 512]\n[128, 4]\n[7168, 8192]\n[56, 64]\n[1536]\n[512]\n[56]",
+      "Z09": "[18432, 7168]\n[144, 56]\n[18432, 7168]\n[144, 56]\n[7168, 18432]\n[56, 144]",
+      "Z13": "384",
+      "Z14": "8",
+      "Z15": "per_layer",
+      "Z16": "[2048, 7168]\n[16, 56]\n[2048, 7168]\n[16, 56]\n[7168, 2048]\n[56, 16]",
+      "Z17": "[1536, 7168]\n[12, 56]\n[12288, 1536]\n[96, 12]\n[576, 7168]\n[5, 56]\n[16384, 512]\n[128, 4]\n[7168, 8192]\n[56, 64]\n[1536]\n[512]\n[56]",
+      "Z18": "[7168]\n[7168]",
+      "Z19": "[384, 7168]\n[384]",
+      "Z20": "[2048, 7168]\n[16, 56]\n[2048, 7168]\n[16, 56]\n[7168, 2048]\n[56, 16]",
+      "Z43": true,
+      "Z44": false
+    }
+  }
+}
